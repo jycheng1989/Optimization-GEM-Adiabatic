@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['w000',['w000',['../namespacegem__com.html#a85f16b53c0a8540056d5cd96a1d810f8',1,'gem_com']]],
+  ['w001',['w001',['../namespacegem__com.html#a303a86a587c3978f550011be62ebd88f',1,'gem_com']]],
+  ['w010',['w010',['../namespacegem__com.html#ad11714fbbfa84145d21e8b0ea9d36f78',1,'gem_com']]],
+  ['w011',['w011',['../namespacegem__com.html#abd71c465c710c784904a3fc681bc11a0',1,'gem_com']]],
+  ['w100',['w100',['../namespacegem__com.html#aa94fd64cc86c1b6eab61f77c8d3e0814',1,'gem_com']]],
+  ['w101',['w101',['../namespacegem__com.html#a0c666d1498071eceaca2540a533b9b7c',1,'gem_com']]],
+  ['w110',['w110',['../namespacegem__com.html#ad5871a9e6660d1ce0f66f8f1ad64d649',1,'gem_com']]],
+  ['w111',['w111',['../namespacegem__com.html#a15b6e70b55d2a908c91b69fcce9cb351',1,'gem_com']]],
+  ['w2',['w2',['../namespacegem__com.html#ae0858b5a43086ec28b127b7d2471607d',1,'gem_com']]],
+  ['w2e',['w2e',['../namespacegem__com.html#ac680c774d57a65cf5006ab7928475983',1,'gem_com']]],
+  ['w3',['w3',['../namespacegem__com.html#a5e52696d08c86bef9bd0084a056418ec',1,'gem_com']]],
+  ['w3e',['w3e',['../namespacegem__com.html#a570053b773d68a07e44323494106956c',1,'gem_com']]],
+  ['weightm',['weightm',['../namespacegem__com.html#ae733018bc7d05a59369ee3d362a812ee',1,'gem_com']]],
+  ['weightmn',['weightmn',['../namespacegem__com.html#a8dbc07760f154a735f8b3bb4cf546f3b',1,'gem_com']]],
+  ['weightp',['weightp',['../namespacegem__com.html#a942358acf18ec3deb2090191b5ab7d0a',1,'gem_com']]],
+  ['weightpn',['weightpn',['../namespacegem__com.html#a6b059890b86340267ba9858e42b83a2a',1,'gem_com']]],
+  ['width',['width',['../namespacegem__com.html#aafd47f7e3b7b4ce0541b6e707b6cd2d4',1,'gem_com']]],
+  ['wmax',['wmax',['../namespacegem__com.html#ab5e925272525ca7feda69ce07dce0684',1,'gem_com']]],
+  ['workx',['workx',['../namespacegem__com.html#a016ec27978a3b0e9a1cd59e0aa985dcd',1,'gem_com']]],
+  ['workxx',['workxx',['../namespacegem__fft__wrapper.html#a2f5f76acdb3433c415ea06f29b3623b1',1,'gem_fft_wrapper']]],
+  ['worky',['worky',['../namespacegem__com.html#ab87140541f17ec1297b8a29f507be1e9',1,'gem_com']]],
+  ['workyy',['workyy',['../namespacegem__fft__wrapper.html#a1e851850d439cae87cf3abf41d68e1ec',1,'gem_fft_wrapper']]],
+  ['workz',['workz',['../namespacegem__com.html#ada26b8f41a37af89cc7f15e45090a433',1,'gem_com']]],
+  ['workzz',['workzz',['../namespacegem__fft__wrapper.html#a1d62eff26fbeda2b0a6b293e439def71',1,'gem_fft_wrapper']]],
+  ['wsave',['wsave',['../namespacegem__fft__wrapper.html#aa44335d1f8769696717a99f3b175cc3a',1,'gem_fft_wrapper']]]
+];
