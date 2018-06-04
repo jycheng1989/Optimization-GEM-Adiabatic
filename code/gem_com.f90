@@ -20,7 +20,7 @@ module gem_com
   END INTERFACE
 
   integer :: imx,jmx,kmx,mmx,mmxe,nmx,nsmx,nsubd=8,&
-       modemx,ntube=4,nxpp,ngdx=5,nb=6, &
+       modemx,ntube=1,nxpp,ngdx=5,nb=6, &
        negrd=8,nlgrd=8
 
   character(len=70) outname

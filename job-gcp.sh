@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 #SBATCH -p debug
-#SBATCH -N 8
+#SBATCH -N 1
 #SBATCH -t 0:30:00
 #SBATCH -J adi
 
@@ -11,4 +11,4 @@ mkdir -p matrix
 mkdir -p out
 mkdir -p dump
 
-mpirun -n 16 ./gem_main >& run.out
+mpirun -n 2 ./gem_main >& run.out
