@@ -1148,7 +1148,6 @@ subroutine enforce(u)
   real :: lbfr(0:imx,0:jmx)
   real :: rbfr(0:imx,0:jmx)
   real :: dum,dum1,dely,th,wy1,ydum
-!$acc enter data
 !$acc parallel 
 !$acc loop collapse(2)
   do j=0,jm-1
@@ -1210,7 +1209,6 @@ subroutine enforce(u)
 
   call enfxy(u)
   !      return
-!$acc exit data
 end subroutine enforce
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 subroutine enfxy(u)
@@ -1222,7 +1220,6 @@ subroutine enfxy(u)
   real :: ydum,th,dely,wy1
 
   !    periodic bc in y...
-!$acc enter data
 !$acc loop collapse(2)
   do k=0,mykm
      do i=0,im-1
@@ -1237,7 +1234,6 @@ subroutine enfxy(u)
         u(im,j,k)=u(0,j,k)
      enddo
   enddo
-!$acc exit data
   !      return
 end subroutine enfxy
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
