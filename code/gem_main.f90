@@ -1148,13 +1148,16 @@ subroutine enforce(u)
   real :: lbfr(0:imx,0:jmx)
   real :: rbfr(0:imx,0:jmx)
   real :: dum,dum1,dely,th,wy1,ydum
-
+!$acc enter data
+!$acc parallel 
+!$acc loop collapse(2)
   do j=0,jm-1
      do k=0,mykm
         u(0,j,k) = u(0,j,k)+u(im,j,k)
      enddo
   enddo
 
+!$acc loop collapse(2)
   do i=0,im-1 
      do k=0,mykm
         u(i,0,k) = u(i,0,k)+u(i,jm,k)
@@ -1163,6 +1166,8 @@ subroutine enforce(u)
   enddo
 
   rbfs=u(:,:,mykm)
+!$acc end parallel
+
   call MPI_SENDRECV(rbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8, &
        rngbr,101, &
@@ -1171,7 +1176,9 @@ subroutine enforce(u)
        lngbr,101, &
        tube_comm,stat,ierr) 
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+!$acc kernels
   lbfs=u(:,:,0)
+!$acc end kernels
   call MPI_SENDRECV(lbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8, &
        lngbr,102, &
@@ -1180,6 +1187,9 @@ subroutine enforce(u)
        rngbr,102, &
        tube_comm,stat,ierr) 
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
+!$acc parallel
+!$acc loop collapse(2)
   do i=0,im
      do j=0,jm
         u(i,j,0)=u(i,j,0)  &
@@ -1187,6 +1197,8 @@ subroutine enforce(u)
              +weightpn(i)*lbfr(i,jpn(i,j)) 
      enddo
   enddo
+
+!$acc loop collapse(2)
   do i=0,im
      do j=0,jm
         u(i,j,mykm)=u(i,j,mykm)           &
@@ -1194,9 +1206,11 @@ subroutine enforce(u)
              +weightmn(i)*rbfr(i,jmn(i,j))
      enddo
   enddo
+!$acc end parallel
 
   call enfxy(u)
   !      return
+!$acc exit data
 end subroutine enforce
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 subroutine enfxy(u)
@@ -1208,6 +1222,8 @@ subroutine enfxy(u)
   real :: ydum,th,dely,wy1
 
   !    periodic bc in y...
+!$acc enter data
+!$acc loop collapse(2)
   do k=0,mykm
      do i=0,im-1
         u(i,jm,k)=u(i,0,k)
@@ -1215,12 +1231,13 @@ subroutine enfxy(u)
   enddo
 
   !   bc for x
+!$acc loop collapse(2)
   do k=0,mykm
      do j=0,jm
         u(im,j,k)=u(0,j,k)
      enddo
   enddo
-
+!$acc exit data
   !      return
 end subroutine enfxy
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -1489,6 +1506,7 @@ subroutine poisson(n,ip)
      call gkps_adiabatic_electron(n,ip)
 
      if(idg.eq.1)write(*,*)'pass gkps in poisson'
+!$acc kernels
      myrmsphi=0.
      rmp(it)=0.
      do k=0,mykm-1
@@ -1498,27 +1516,40 @@ subroutine poisson(n,ip)
            enddo
         enddo
      enddo
+!$acc end kernels
      call MPI_ALLREDUCE(myrmsphi,rmp(it),1, &
           MPI_REAL8,                               &
           MPI_SUM,TUBE_COMM,ierr)
+!$acc kernels
      rmp(it)=sqrt(rmp(it)/(im*jm*km))
+!$acc end kernels
   end do
   if(idg.eq.1)write(*,*)'pass iter loop in poisson'
-  rmsphi(n)=rmp(iter)        
+!$acc kernels
+  rmsphi(n)=rmp(iter)
+!$acc end kernels        
   if(ip==1)ipred = 1
   if(ip==0)icorr = 1
   if(iter==1)goto 100
   if(rmp(iter)/rmp(iter-1)>1.1)then
+!$acc kernels
      phi(:,:,:) = 0.
+!$acc end kernels
      if(ip==1)ipred = 0
      if(ip==0)icorr = 0
+!$acc kernels
      rmsphi(n)=0
+!$acc end kernels
   end if
   if(n>100.and.rmp(iter)/rmpp>1.5)then
+!$acc kernels
      phi(:,:,:) = 0.
+!$acc end kernels
      if(ip==1)ipred = -1
      if(ip==0)icorr = -1
+!$acc kernels
      rmsphi(n)=0           
+!$acc end kernels
   end if
   rmpp = rmp(iter)
 100 continue
@@ -1526,23 +1557,28 @@ subroutine poisson(n,ip)
 
   !remove zonal field
   if(izonal==0)then
+!$acc kernels
      do i=0,im-1
         myavap(i) = 0.
         myjaca(i) = 0.
         do j=0,jm-1
            myavap(i)=myavap(i)+phi(i,j,0)*jac(i,0)
            myjaca(i)=myjaca(i)+jac(i,0)
+
         enddo
      enddo
+!$acc end kernels
      call MPI_ALLREDUCE(myavap,avap,imx, &
           MPI_REAL8,                               &
           MPI_SUM,TUBE_COMM,ierr)
      call MPI_ALLREDUCE(myjaca,jaca,imx, &
           MPI_REAL8,                               &
           MPI_SUM,TUBE_COMM,ierr)
-
+!$acc kernels
      avap(0:imx-1)=avap(0:imx-1)/jaca(0:imx-1)
+!$acc end kernels
 
+!$acc kernels
      do i = 0,imx-1
         do j = 0,jmx
            do k = 0,1
@@ -1550,9 +1586,11 @@ subroutine poisson(n,ip)
            end do
         end do
      end do
+!$acc end kernels
   end if
 
   myrmsphi=0.
+!$acc kernels
   do k=0,mykm-1
      do j=0,jm-1
         do i1=0,im-1
@@ -1560,11 +1598,13 @@ subroutine poisson(n,ip)
         enddo
      enddo
   enddo
+!$acc end kernels
   call MPI_ALLREDUCE(myrmsphi,rmsphi(n),1, &
        MPI_REAL8,                               &
        MPI_SUM,TUBE_COMM,ierr)
+!$acc kernels
   rmsphi(n)=sqrt(rmsphi(n)/(im*jm*km))
-
+!$acc end kernels
   if(idg.eq.1)write(*,*)'pass poisson'
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)        
 end subroutine poisson

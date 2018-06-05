@@ -22,7 +22,6 @@ subroutine grid1(ip,n)
   real :: dbdrp,dbdtp,grcgtp,bfldp,fp,radiusp,dydrp,qhatp,psipp,jfnp
   real :: grp,gxdgyp,rhox(4),rhoy(4)
 
-  integer :: count1, count2, clockrate, clockmax
 
   rho=0.
   jion = 0.
@@ -30,18 +29,18 @@ subroutine grid1(ip,n)
   ns=1
   if(idg.eq.1)write(*,*)'enter ion grid1',mm(1)
   do ns = 1,nsm
+!$acc kernels
      den(ns,:,:,:)=0.
      jpar(ns,:,:,:)=0.
+!$acc end kernels
      myden = 0.
      myjpar = 0.
      mydti = 0.
 
-     call system_clock(count1, clockrate, clockmax)
 !$acc parallel loop gang vector private(rhox,rhoy)
      do m=1,mm(ns)
         dv=float(lr(1))*(dx*dy*dz)
         r=x3(ns,m)-0.5*lx+lr0
-
         k = int(z3(ns,m)/delz)
         wz0 = ((k+1)*delz-z3(ns,m))/delz
         wz1 = 1-wz0
@@ -121,8 +120,6 @@ subroutine grid1(ip,n)
         enddo
      enddo
 !$acc end parallel
-     call system_clock(count2, clockrate, clockmax)
-     write (*,*) 'LOOP IN GRID1:', (count2 - count1) / real(clockrate)
 
      if(idg.eq.1)write(*,*)myid,'pass ion grid1'
      call MPI_BARRIER(MPI_COMM_WORLD,ierr)
@@ -133,6 +130,7 @@ subroutine grid1(ip,n)
      !      call filter(myden(:,:,:))
      !      call filter(myjpar(:,:,:))
 
+!$acc parallel loop gang vector collapse(3)
      do i=0,im
         do j=0,jm
            do k=0,mykm
@@ -142,7 +140,9 @@ subroutine grid1(ip,n)
            enddo
         enddo
      enddo
+!$acc end parallel
 
+!$acc parallel loop gang vector collapse(3)
      do i = 0,im
         do j = 0,jm
            do k = 0,1
@@ -150,12 +150,27 @@ subroutine grid1(ip,n)
            end do
         end do
      end do
+!$acc end parallel
+
+
+
+! #ifdef GPUDIRECT
+! !$acc host_data use_device(den,dti)
      call MPI_ALLREDUCE(den(ns,0:im,0:jm,0:1),  &
           dti(ns,0:im,0:jm,0:1),             &
           (imx+1)*(jmx+1)*2,MPI_REAL8,       &
           MPI_SUM,GRID_COMM,ierr)
+! !$acc end host_data
+! #else
+! !$acc update host (den,dti)
+!      call MPI_ALLREDUCE(den(ns,0:im,0:jm,0:1),  &
+!           dti(ns,0:im,0:jm,0:1),             &
+!           (imx+1)*(jmx+1)*2,MPI_REAL8,       &
+!           MPI_SUM,GRID_COMM,ierr)
+! !$acc update device(den,dti)
+! #endif
 
-
+!$acc parallel loop !gang vector collapse(3)
      do i=0,im
         do j=0,jm
            do k=0,mykm
@@ -164,7 +179,9 @@ subroutine grid1(ip,n)
            enddo
         enddo
      enddo
+!$acc end parallel
   end do
+
 
 end subroutine grid1
 
