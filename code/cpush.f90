@@ -19,6 +19,8 @@ subroutine cpush(n,ns)
   real :: dbdrp,dbdtp,grcgtp,bfldp,fp,radiusp,dydrp,qhatp,psipp,jfnp,grdgtp
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
 
+  integer :: count1, count2, clockrate, clockmax
+
   sbuf(1:10) = 0.
   rbuf(1:10) = 0.
   myavewi = 0.
@@ -34,6 +36,8 @@ subroutine cpush(n,ns)
   nostemp=0.
   pidum = 1./(pi*2)**1.5*vwidth**3
 
+  call system_clock(count1, clockrate, clockmax)
+!$acc parallel loop gang vector private(rhox,rhoy)
   do m=1,mm(ns)
      r=x3(ns,m)-0.5*lx+lr0
 
@@ -113,6 +117,7 @@ subroutine cpush(n,ns)
      aparp = 0.
 
      !  4 pt. avg. written out explicitly for vectorization...
+!$acc loop seq
      do l=1,lr(1)
         xs=x3(ns,m)+rhox(l) !rwx(1,l)*rhog
         yt=y3(ns,m)+rhoy(l) !(rwy(1,l)+sz*rwx(1,l))*rhog
@@ -237,6 +242,9 @@ subroutine cpush(n,ns)
 
      !     100     continue
   enddo
+!$acc end parallel
+  call system_clock(count2, clockrate, clockmax)
+  write (*,*) 'LOOP IN CPUSH:', (count2 - count1) / real(clockrate)
 
   sbuf(1)=myke
   sbuf(2)=myefl_es(nsubd/2)

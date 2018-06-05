@@ -22,6 +22,8 @@ subroutine grid1(ip,n)
   real :: dbdrp,dbdtp,grcgtp,bfldp,fp,radiusp,dydrp,qhatp,psipp,jfnp
   real :: grp,gxdgyp,rhox(4),rhoy(4)
 
+  integer :: count1, count2, clockrate, clockmax
+
   rho=0.
   jion = 0.
   mydte = 0.
@@ -33,6 +35,9 @@ subroutine grid1(ip,n)
      myden = 0.
      myjpar = 0.
      mydti = 0.
+
+     call system_clock(count1, clockrate, clockmax)
+!$acc parallel loop gang vector private(rhox,rhoy)
      do m=1,mm(ns)
         dv=float(lr(1))*(dx*dy*dz)
         r=x3(ns,m)-0.5*lx+lr0
@@ -89,6 +94,7 @@ subroutine grid1(ip,n)
         vpar = u3(ns,m) !linearly correct
 
         !    now do 1,2,4 point average, where lr is the no. of points...
+!$acc loop seq
         do l=1,lr(1)
            xs=x3(ns,m)+rhox(l) !rwx(1,l)*rhog
            yt=y3(ns,m)+rhoy(l) !(rwy(1,l)+sz*rwx(1,l))*rhog
@@ -101,12 +107,23 @@ subroutine grid1(ip,n)
            j=int(yt/dy+0.5)
            k=int(z3(ns,m)/dz+0.5)-gclr*kcnt
 
+
+!$acc atomic update
            myden(i,j,k) = myden(i,j,k) + wght
+!$acc end atomic
+!$acc atomic update
            myjpar(i,j,k) = myjpar(i,j,k)+wght*vpar
+!$acc end atomic
+!$acc atomic update
            mydti(i,j,k) = mydti(i,j,k)+wght*vfac
+!$acc end atomic
 
         enddo
      enddo
+!$acc end parallel
+     call system_clock(count2, clockrate, clockmax)
+     write (*,*) 'LOOP IN GRID1:', (count2 - count1) / real(clockrate)
+
      if(idg.eq.1)write(*,*)myid,'pass ion grid1'
      call MPI_BARRIER(MPI_COMM_WORLD,ierr)
      !   enforce periodicity

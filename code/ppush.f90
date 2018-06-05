@@ -14,9 +14,14 @@ subroutine ppush(n,ns)
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
   integer :: mynopi
 
+  integer :: count1, count2, clockrate, clockmax
+
   pidum = 1./(pi*2)**1.5*vwidth**3
   mynopi = 0
   nopi(ns) = 0
+
+  call system_clock(count1, clockrate, clockmax)
+!$acc parallel loop gang vector private(rhox,rhoy)
   do m=1,mm(ns)
      r=x2(ns,m)-0.5*lx+lr0
      k = int(z2(ns,m)/delz)
@@ -95,6 +100,7 @@ subroutine ppush(n,ns)
      aparp = 0.
 
      !  4 pt. avg. done explicitly for vectorization...
+!$acc loop seq
      do l=1,lr(1)
         !
         xs=x2(ns,m)+rhox(l) !rwx(1,l)*rhog
@@ -164,7 +170,7 @@ subroutine ppush(n,ns)
      !         if(x3(ns,m)>lx .or. x3(ns,m)<0.)w3(ns,m) = 0.
 
 
-     if(itube==1)go to 333
+     if(itube/=1) then
      if(abs(pzp-pzi(ns,m))>pzcrit(ns).or.abs(vfac-eki(ns,m))>0.2*eki(ns,m))then
         mynopi = mynopi+1
         x3(ns,m) = xii(ns,m)
@@ -190,9 +196,8 @@ subroutine ppush(n,ns)
         x2(ns,m) = x3(ns,m)
         z2(ns,m) = z3(ns,m)
      end if
+     end if
 
-
-333  continue
      laps=anint((z3(ns,m)/lz)-.5)*(1-peritr)
      r=x3(ns,m)-0.5*lx+lr0
      i = int((r-rin)/dr)
@@ -225,6 +230,10 @@ subroutine ppush(n,ns)
      z3(ns,m) = min(z3(ns,m),lz-1.0e-8)
 
   enddo
+!$acc end parallel
+  call system_clock(count2, clockrate, clockmax)
+  write (*,*) 'LOOP IN PPUSH:', (count2 - count1) / real(clockrate)
+
   call MPI_ALLREDUCE(mynopi,nopi(ns),1,MPI_integer, &
        MPI_SUM, MPI_COMM_WORLD,ierr)
 
