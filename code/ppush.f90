@@ -14,13 +14,12 @@ subroutine ppush(n,ns)
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
   integer :: mynopi
 
-  integer :: count1, count2, clockrate, clockmax
-
   pidum = 1./(pi*2)**1.5*vwidth**3
   mynopi = 0
+!$acc kernels
   nopi(ns) = 0
+!$acc end kernels
 
-  call system_clock(count1, clockrate, clockmax)
 !$acc parallel loop gang vector private(rhox,rhoy)
   do m=1,mm(ns)
      r=x2(ns,m)-0.5*lx+lr0
@@ -231,8 +230,6 @@ subroutine ppush(n,ns)
 
   enddo
 !$acc end parallel
-  call system_clock(count2, clockrate, clockmax)
-  write (*,*) 'LOOP IN PPUSH:', (count2 - count1) / real(clockrate)
 
   call MPI_ALLREDUCE(mynopi,nopi(ns),1,MPI_integer, &
        MPI_SUM, MPI_COMM_WORLD,ierr)
@@ -275,8 +272,9 @@ subroutine ppush(n,ns)
   if (ierr.ne.0) call ppexit
 
   call end_pmove(ierr)
+!$acc kernels
   mm(ns)=np_new
-
+!$acc end kernels
   !      return
 end subroutine ppush
 
