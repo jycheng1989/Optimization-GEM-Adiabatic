@@ -486,15 +486,21 @@ subroutine grad(ip)
 
   if(idg==1)write(*,*)'enter grad'
   call gradu(phi(:,:,:),ux,uy)
+  !$acc kernels
   ex(:,:,:) = -ux(:,:,:)
   ey(:,:,:) = -uy(:,:,:)
+  !$acc end kernels
 
+  !$acc kernels
   delbx = 0.
   delby = 0.
+  !$acc end kernels
   if(ifluid.eq.1)then
      call gradu(apar(:,:,:),ux,uy)
+     !$acc kernels
      delbx(:,:,:) = uy(:,:,:)
      delby(:,:,:) = -ux(:,:,:)
+     !$acc end kernels
   end if
 
   !      return
@@ -772,6 +778,7 @@ subroutine eqmo(ip)
   integer :: i,j,k,ip
   real :: eta
 
+  !$acc kernels
   ez(:,:,:) = 0.
   dpdz = 0.
   do i = 0,im
@@ -783,6 +790,7 @@ subroutine eqmo(ip)
   end do
 
   rbfs = phi(:,:,0)
+  !$acc end kernels
 
   call MPI_SENDRECV(rbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8,rngbr,204,                    &
@@ -790,7 +798,9 @@ subroutine eqmo(ip)
        MPI_REAL8,lngbr,204,                    &
        TUBE_COMM,stat,ierr)
 
+  !$acc kernels
   lbfs=phi(:,:,1)
+  !$acc end kernels
 
   call MPI_SENDRECV(lbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8,lngbr,205,                    &
@@ -798,6 +808,8 @@ subroutine eqmo(ip)
        MPI_REAL8,rngbr,205,                    &
        TUBE_COMM,stat,ierr)                    
   call MPI_BARRIER(TUBE_COMM,ierr)             
+
+  !$acc kernels
   do i=0,im
      do j=0,jm
         ez(i,j,0)=(weightp(i)*lbfr(i,jpl(i,j)) &
@@ -811,6 +823,7 @@ subroutine eqmo(ip)
   enddo
 
   dpdz(:,:,:) = -ez(:,:,:)
+  !$acc end kernels
 
 end subroutine eqmo
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -1246,6 +1259,7 @@ subroutine gradu(u,ux,uy)
   integer :: i,j,k,l,m,n,jj,ju,jl
   real :: ydum,th,dely,wy1,ul
 
+  !$acc kernels
   do j=0,jm-1
      ju = j+1
      jl = j-1
@@ -1256,7 +1270,9 @@ subroutine gradu(u,ux,uy)
         enddo
      enddo
   enddo
+  !$acc end kernels
 
+  !$acc kernels
   do i=1,im-1
      do j=0,jm-1
         do k=0,mykm
@@ -1264,14 +1280,17 @@ subroutine gradu(u,ux,uy)
         enddo
      enddo
   enddo
+  !$acc end kernels
 
   ! do boundary i=0
+  !$acc kernels
   do j=0,jm-1
      do k=0,mykm
         ul=u(im-1,j,k)
         ux(0,j,k)=(u(1,j,k)-ul)/(2.*dx)
      enddo
   enddo
+  !$acc end kernels
 
   call enfxy(ux)
   call enfxy(uy)
@@ -1288,6 +1307,7 @@ subroutine gradx(u,ux)
   integer :: i,j,k,l,m,n,jj,ju,jl
   real :: ydum,th,dely,wy1,ul
 
+  !$acc kernels
   do i=1,im-1
      do j=0,jm-1
         do k=0,mykm
@@ -1295,14 +1315,17 @@ subroutine gradx(u,ux)
         enddo
      enddo
   enddo
+  !$acc end kernels
 
   ! do boundary i=0
+  !$acc kernels
   do j=0,jm-1
      do k=0,mykm
         ul=u(im-1,j,k)
         ux(0,j,k)=(u(1,j,k)-ul)/(2.*dx)
      enddo
   enddo
+  !$acc end kernels
 
   call enfxy(ux)
 
@@ -1318,6 +1341,7 @@ subroutine grady(u,uy)
   integer :: i,j,k,l,m,n,jj,ju,jl
   real :: ydum,th,dely,wy1,ul
 
+  !$acc kernels
   do j=0,jm-1
      ju = j+1
      jl = j-1
@@ -1328,6 +1352,7 @@ subroutine grady(u,uy)
         enddo
      enddo
   enddo
+  !$acc end kernels
 
   call enfxy(uy)
 
@@ -1345,27 +1370,32 @@ subroutine enfz(u)
   real :: rbfs(0:imx,0:jmx)
   integer :: i,j
 
+  !$acc kernels
   do i = 0,im
      do j = 0,jm
         rbfs(i,j)=u(i,j,mykm)
      end do
   end do
+  !$acc end kernels
   call MPI_SENDRECV(rbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8,rngbr,204, &
        lbfr(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8,lngbr,204,       &
        tube_comm,stat,ierr)
+  !$acc kernels
   do i = 0,im
      do j = 0,jm
         lbfs(i,j)=u(i,j,0)
      end do
   end do
+  !$acc end kernels
   call MPI_SENDRECV(lbfs(0,0),(imx+1)*(jmx+1),  &
        MPI_REAL8,lngbr,205,  &
        rbfr(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8,rngbr,205,  &
        tube_comm,stat,ierr)
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  !$acc kernels
   do i=0,im
      do j=0,jm
         u(i,j,0)=(weightp(i)*lbfr(i,jpl(i,j))  &
@@ -1376,6 +1406,7 @@ subroutine enfz(u)
              +u(i,j,mykm) )/2.
      enddo
   enddo
+  !$acc end kernels
 
   !      return
 end subroutine enfz
@@ -1687,25 +1718,33 @@ subroutine dcmpy(u,v)
   real :: kx,ky,kx0,th,shat,sgny
 
   do k=0,mykm
+  !$acc kernels
      do j=0,jm-1
         do i=0,imx-1
            temp3d(i,j,k)=u(i,j,k)
         enddo
      enddo
+  !$acc end kernels
      do i = 0,imx-1
+  !$acc kernels
         do j = 0,jmx-1
            tmpy(j) = temp3d(i,j,k)
         end do
+  !$acc end kernels
         call ccfft('y',-1,jmx,1.0,tmpy,coefy,worky,0)
+  !$acc kernels
         do j = 0,jmx-1
            temp3d(i,j,k) = tmpy(j)
         end do
+  !$acc end kernels
      end do
   enddo
 
+  !$acc kernels
   do m = 0,jcnt-1
      myv(:,m,:) = temp3d(:,jft(m),:)
   end do
+  !$acc end kernels
 
   cnt = 2*jcnt*imx
   call mpi_allreduce(myv,v,cnt,MPI_DOUBLE_COMPLEX,mpi_sum, &
