@@ -4,6 +4,7 @@ program gem_main
   use gem_com
   use gem_equil
   use gem_fft_wrapper
+  use regtest
 
   implicit none
   integer :: n,i,j,k,ip
@@ -44,6 +45,13 @@ program gem_main
      call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   end do
+
+  ! create test cases
+  !call regtest_main(.True., '.', '100kparticles')
+
+  ! test current code
+  call regtest_main(.False., '.', '100kparticles')
+
   call ftcamp
   lasttm=MPI_WTIME()
   tottm=lasttm-starttm
@@ -772,8 +780,13 @@ subroutine eqmo(ip)
   integer :: i,j,k,ip
   real :: eta
 
+  real :: time1, time2
+  time1 = mpi_wtime()
+
+  !$acc parallel
   ez(:,:,:) = 0.
   dpdz = 0.
+  !$acc loop collapse(3)
   do i = 0,im
      do j = 0,jm
         do k = 1,mykm-1
@@ -783,6 +796,11 @@ subroutine eqmo(ip)
   end do
 
   rbfs = phi(:,:,0)
+  !$acc end parallel
+
+  time2 = mpi_wtime()
+  write (*,*) 'EQMO:1:', time2 - time1
+  time1 = mpi_wtime()
 
   call MPI_SENDRECV(rbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8,rngbr,204,                    &
@@ -798,6 +816,13 @@ subroutine eqmo(ip)
        MPI_REAL8,rngbr,205,                    &
        TUBE_COMM,stat,ierr)                    
   call MPI_BARRIER(TUBE_COMM,ierr)             
+
+  time2 = mpi_wtime()
+  write (*,*) 'EQMO:2:', time2 - time1
+  time1 = mpi_wtime()
+
+  !$acc parallel
+  !$acc loop collapse(2)
   do i=0,im
      do j=0,jm
         ez(i,j,0)=(weightp(i)*lbfr(i,jpl(i,j)) &
@@ -810,7 +835,12 @@ subroutine eqmo(ip)
      enddo
   enddo
 
+
   dpdz(:,:,:) = -ez(:,:,:)
+  !$acc end parallel
+
+  time2 = mpi_wtime()
+  write (*,*) 'EQMO:3:', time2 - time1
 
 end subroutine eqmo
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -1148,7 +1178,7 @@ subroutine enforce(u)
   real :: lbfr(0:imx,0:jmx)
   real :: rbfr(0:imx,0:jmx)
   real :: dum,dum1,dely,th,wy1,ydum
-!$acc enter data
+
 !$acc parallel 
 !$acc loop collapse(2)
   do j=0,jm-1
@@ -1157,16 +1187,18 @@ subroutine enforce(u)
      enddo
   enddo
 
-!$acc loop collapse(2)
+  !$acc loop collapse(2)
   do i=0,im-1 
      do k=0,mykm
         u(i,0,k) = u(i,0,k)+u(i,jm,k)
         u(i,jm,k) = u(i,0,k)
      enddo
   enddo
+  !$acc end parallel
 
+  !$acc kernels
   rbfs=u(:,:,mykm)
-!$acc end parallel
+  !$acc end kernels
 
   call MPI_SENDRECV(rbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8, &
@@ -1176,9 +1208,9 @@ subroutine enforce(u)
        lngbr,101, &
        tube_comm,stat,ierr) 
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
-!$acc kernels
+  !$acc kernels
   lbfs=u(:,:,0)
-!$acc end kernels
+  !$acc end kernels
   call MPI_SENDRECV(lbfs(0,0),(imx+1)*(jmx+1), &
        MPI_REAL8, &
        lngbr,102, &
@@ -1188,8 +1220,8 @@ subroutine enforce(u)
        tube_comm,stat,ierr) 
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
-!$acc parallel
-!$acc loop collapse(2)
+  !$acc parallel
+  !$acc loop collapse(2)
   do i=0,im
      do j=0,jm
         u(i,j,0)=u(i,j,0)  &
@@ -1198,7 +1230,7 @@ subroutine enforce(u)
      enddo
   enddo
 
-!$acc loop collapse(2)
+  !$acc loop collapse(2)
   do i=0,im
      do j=0,jm
         u(i,j,mykm)=u(i,j,mykm)           &
@@ -1206,11 +1238,11 @@ subroutine enforce(u)
              +weightmn(i)*rbfr(i,jmn(i,j))
      enddo
   enddo
-!$acc end parallel
+  !$acc end parallel
 
   call enfxy(u)
   !      return
-!$acc exit data
+!a !$acc exit data
 end subroutine enforce
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 subroutine enfxy(u)

@@ -1,6 +1,6 @@
-SRCS =	gem_com.f90 gem_equil.f90 gem_main.f90 gem_outd.f90 gem_fcnt.f90 gem_fft_wrapper.f90 gem_gkps_adi.f90 ppush.f90 cpush.f90 grid1.f90
+SRCS =	gem_com.f90 gem_equil.f90 gem_main.f90 gem_outd.f90 gem_fcnt.f90 gem_fft_wrapper.f90 gem_gkps_adi.f90 ppush.f90 cpush.f90 grid1.f90 regtest.f90
 
-OBJS =	gem_com.o gem_equil.o gem_main.o gem_outd.o gem_fcnt.o gem_fft_wrapper.o gem_gkps_adi.o ppush.o cpush.o grid1.o 
+OBJS =	gem_com.o gem_equil.o gem_main.o gem_outd.o gem_fcnt.o gem_fft_wrapper.o gem_gkps_adi.o ppush.o cpush.o grid1.o regtest.o
 
 DFFTPACK=../dfftpack/libdfftpack.a
 LIBS = $(DFFTPACK)
@@ -38,7 +38,7 @@ cpush.o: gem_com.mod gem_equil.o cpush.f90
 grid1.o: gem_com.mod gem_equil.o grid1.f90
 	$(F90) -c $(OPT) grid1.f90
 
-gem_main.o: gem_main.f90 gem_fft_wrapper.o gem_pputil.o gem_com.mod gem_equil.o gem_gkps_adi.o ppush.o cpush.o grid1.o
+gem_main.o: gem_main.f90 gem_fft_wrapper.o gem_pputil.o gem_com.mod gem_equil.o gem_gkps_adi.o ppush.o cpush.o grid1.o regtest.o
 	$(F90) -c $(OPT) gem_main.f90
 
 gem_outd.o: gem_outd.f90 gem_fft_wrapper.o gem_pputil.o gem_com.mod gem_equil.o
@@ -49,6 +49,9 @@ gem_fcnt.o: gem_fcnt.f90
 
 gem_fft_wrapper.o: gem_fft_wrapper.f90
 	$(F90) -c $(OPT) gem_fft_wrapper.f90
+
+regtest.o: regtest.f90
+	$(F90) -c $(OPT) regtest.f90
 
 clean:
 	rm -f *.o *.lst *.mod gem_main
