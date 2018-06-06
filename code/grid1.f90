@@ -22,6 +22,9 @@ subroutine grid1(ip,n)
   real :: dbdrp,dbdtp,grcgtp,bfldp,fp,radiusp,dydrp,qhatp,psipp,jfnp
   real :: grp,gxdgyp,rhox(4),rhoy(4)
 
+  integer :: count1, count2, clockrate, clockmax
+
+  call system_clock(count1, clockrate, clockmax)
 
   rho=0.
   jion = 0.
@@ -182,6 +185,8 @@ subroutine grid1(ip,n)
 !$acc end parallel
   end do
 
+  call system_clock(count2, clockrate, clockmax)
+  write (*,*) 'FULL GRID1:', (count2 - count1) / real(clockrate)
 
 end subroutine grid1
 

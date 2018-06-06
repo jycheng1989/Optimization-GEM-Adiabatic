@@ -14,11 +14,16 @@ subroutine ppush(n,ns)
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
   integer :: mynopi
 
+  integer :: count1, count2, clockrate, clockmax
+
+  call system_clock(count1, clockrate, clockmax)
+
   pidum = 1./(pi*2)**1.5*vwidth**3
   mynopi = 0
 !$acc kernels
   nopi(ns) = 0
 !$acc end kernels
+
 
 !$acc parallel loop gang vector private(rhox,rhoy)
   do m=1,mm(ns)
@@ -275,6 +280,9 @@ subroutine ppush(n,ns)
 !$acc kernels
   mm(ns)=np_new
 !$acc end kernels
-  !      return
+
+  call system_clock(count2, clockrate, clockmax)
+  write (*,*) 'FULL PPUSH:', (count2 - count1) / real(clockrate)
+
 end subroutine ppush
 

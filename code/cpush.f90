@@ -19,6 +19,10 @@ subroutine cpush(n,ns)
   real :: dbdrp,dbdtp,grcgtp,bfldp,fp,radiusp,dydrp,qhatp,psipp,jfnp,grdgtp
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
 
+  integer :: count1, count2, clockrate, clockmax
+
+  call system_clock(count1, clockrate, clockmax)
+
 !$acc kernels
   sbuf(1:10) = 0.
   rbuf(1:10) = 0.
@@ -357,8 +361,9 @@ subroutine cpush(n,ns)
 !$acc kernels
   mm(ns)=np_new
 !$acc end kernels
-  !     write(*,*)MyId,mm(ns)
 
-  !      return
+  call system_clock(count2, clockrate, clockmax)
+  write (*,*) 'FULL CPUSH:', (count2 - count1) / real(clockrate)
+
 end subroutine cpush
 
