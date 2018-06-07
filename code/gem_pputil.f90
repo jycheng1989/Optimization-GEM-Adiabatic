@@ -55,7 +55,7 @@ CONTAINS
     INTEGER, INTENT(out) :: ierr
     !
     !  Local vars
-    INTEGER :: nsize, ksize
+    INTEGER :: nsize, ksize, sizexp
     INTEGER :: i, ip, iz, ih, iwork
     REAL :: dzz, xt
     INTEGER, DIMENSION(0:nvp-1) :: isb
@@ -73,6 +73,7 @@ CONTAINS
     !
     dzz = lz / nvp
     s_counts = 0
+!$acc loop seq
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
@@ -105,6 +106,7 @@ CONTAINS
     !
     isb(0:nvp-1) = s_displ(0:nvp-1)
     ih = 0
+!$acc loop seq
     DO ip=1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
@@ -138,7 +140,10 @@ CONTAINS
     !  Check for part. array overflow
     ierr = 0
     nsize = np - sum(s_counts) + sum(r_counts)
-    if( nsize .gt. size(xp) ) then
+!$acc kernels
+    sizexp = size(xp)
+!$acc end kernels
+    if( nsize .gt. sizexp ) then
        write(*,*) 'PE', me, 'Particle array overflow'
        ierr = 1
     end if
@@ -174,6 +179,7 @@ CONTAINS
 !----------------------------------------------------------------------
 !              1.  Fill send buffer
 !
+!$acc loop seq
     DO i=0,nvp-1
        IF( s_counts(i) .GT. 0 ) THEN
           isrt = s_displ(i)+1
@@ -210,6 +216,7 @@ CONTAINS
 !
     nhole = sum(s_counts)
     ip = np_old
+!$acc loop seq
     DO ih = nhole, 1, -1
        xp(iphole(ih)) = xp(ip)
        ip = ip-1
@@ -231,12 +238,14 @@ CONTAINS
        tot_count =  tot_count+count
     END DO
 !
+!$acc kernels
     IF( tot_count .GT. 0 ) THEN
        isrt = np_new + 1
        iend = np_new + tot_count
        xp(isrt:iend) = r_buf(1:tot_count)
        np_new = iend
     END IF
+!$acc end kernels
 !
 !----------------------------------------------------------------------
 !              5.   Epilogue

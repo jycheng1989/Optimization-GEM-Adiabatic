@@ -304,8 +304,6 @@ subroutine cpush(n,ns)
   !      pfl(1,n)=pfltemp/( float(tmm(1)) )
   !      efl(1,n)=mims(ns)/tets(1)*efltemp/( float(tmm(1)) )
 
-!$acc host_data
-{
   np_old=mm(ns)
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
   call init_pmove(z3(ns,:),np_old,lz,ierr)
@@ -345,7 +343,6 @@ subroutine cpush(n,ns)
 
   call end_pmove(ierr)
   mm(ns)=np_new
-}
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL CPUSH:', (count2 - count1) / real(clockrate)

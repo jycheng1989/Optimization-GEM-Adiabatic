@@ -26,9 +26,7 @@ program gem_main
      goto 100
   end if
 
-!$acc data copy(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2x3,y3,z3,u3,w2,w3)
-{
-
+!$acc data copy(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
   do  timestep=ncurr,nm
      tcurr = tcurr+dt
 
@@ -48,7 +46,7 @@ program gem_main
      call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   end do
-}
+!$acc end data
 
   ! create test cases
   !call regtest_main(.True., '.', '100kparticles')

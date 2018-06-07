@@ -237,8 +237,6 @@ subroutine ppush(n,ns)
   call MPI_ALLREDUCE(mynopi,nopi(ns),1,MPI_integer, &
        MPI_SUM, MPI_COMM_WORLD,ierr)
 
-!$acc host_data
-{
   np_old=mm(ns)
   call init_pmove(z3(ns,:),np_old,lz,ierr)
 
@@ -278,7 +276,6 @@ subroutine ppush(n,ns)
 
   call end_pmove(ierr)
   mm(ns)=np_new
-}
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL PPUSH:', (count2 - count1) / real(clockrate)
