@@ -649,7 +649,7 @@ subroutine pol2d
 
            yt = wr0*wz0*yfn(i1,j1)+wr0*wz1*yfn(i1,j1+1) &
                 +wr1*wz0*yfn(i1+1,j1)+wr1*wz1*yfn(i1+1,j1+1) 
-           yt = mod(yt+800.0*ly,ly)    
+           yt = modulo(yt, ly)
            zt = wz0*zfnth(j1)+wz1*zfnth(j1+1)
            zt = min(zt,lz-1.e-2)
            xt = r-rin

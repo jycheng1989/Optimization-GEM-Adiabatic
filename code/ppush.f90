@@ -12,20 +12,14 @@ subroutine ppush(n,ns)
   real :: xt,xs,yt,xdot,ydot,zdot,pzdot,edot,pzd0,vp0
   real :: dbdrp,dbdtp,grcgtp,bfldp,fp,radiusp,dydrp,qhatp,psipp,jfnp,grdgtp
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
-  integer :: mynopi
 
   integer :: count1, count2, clockrate, clockmax
 
   call system_clock(count1, clockrate, clockmax)
 
   pidum = 1./(pi*2)**1.5*vwidth**3
-  mynopi = 0
-!$acc kernels
-  nopi(ns) = 0
-!$acc end kernels
 
-
-!$acc parallel loop gang vector private(rhox,rhoy)
+  !$acc parallel loop gang vector private(rhox,rhoy)
   do m=1,mm(ns)
      r=x2(ns,m)-0.5*lx+lr0
      k = int(z2(ns,m)/delz)
@@ -104,15 +98,15 @@ subroutine ppush(n,ns)
      aparp = 0.
 
      !  4 pt. avg. done explicitly for vectorization...
-!$acc loop seq
+ !$acc loop seq
      do l=1,lr(1)
         !
         xs=x2(ns,m)+rhox(l) !rwx(1,l)*rhog
         yt=y2(ns,m)+rhoy(l) !(rwy(1,l)+sz*rwx(1,l))*rhog
         !
         !   particle can go out of bounds during gyroavg...
-        xt=mod(xs+800.*lx,lx)
-        yt=mod(yt+800.*ly,ly)
+        xt = modulo(xs, lx)
+        yt = modulo(yt, ly)
         xt = min(xt,lx-1.0e-8)
         yt = min(yt,ly-1.0e-8)
 
@@ -176,7 +170,6 @@ subroutine ppush(n,ns)
 
      if(itube/=1) then
      if(abs(pzp-pzi(ns,m))>pzcrit(ns).or.abs(vfac-eki(ns,m))>0.2*eki(ns,m))then
-        mynopi = mynopi+1
         x3(ns,m) = xii(ns,m)
         z3(ns,m) = z0i(ns,m)
         r = x3(ns,m)-lx/2+lr0
@@ -210,7 +203,7 @@ subroutine ppush(n,ns)
      wx0 = (rin+(i+1)*dr-r)/dr
      wx1 = 1.-wx0
      qr = wx0*sf(i)+wx1*sf(i+1)
-     y3(ns,m)=mod(y3(ns,m)-laps*2*pi*qr*lr0/q0*sign(1.0,q0)+8000.*ly,ly)
+     y3(ns,m)=modulo(y3(ns,m)-laps*2*pi*qr*lr0/q0*sign(1.0,q0), ly)
      if(x3(ns,m)>lx.and.iperidf==0)then
         x3(ns,m) = lx-1.e-8
         z3(ns,m)=lz-z3(ns,m)
@@ -227,17 +220,14 @@ subroutine ppush(n,ns)
         w2(ns,m) = 0.
         w3(ns,m) = 0.
      end if
-     z3(ns,m)=mod(z3(ns,m)+8.*lz,lz)
-     x3(ns,m)=mod(x3(ns,m)+800.*lx,lx)
+     
+     z3(ns,m) = modulo(z3(ns,m), lz)
+     x3(ns,m) = modulo(x3(ns,m), lx)
      x3(ns,m) = min(x3(ns,m),lx-1.0e-8)
      y3(ns,m) = min(y3(ns,m),ly-1.0e-8)
      z3(ns,m) = min(z3(ns,m),lz-1.0e-8)
-
   enddo
-!$acc end parallel
-
-  call MPI_ALLREDUCE(mynopi,nopi(ns),1,MPI_integer, &
-       MPI_SUM, MPI_COMM_WORLD,ierr)
+  !$acc end parallel
 
   np_old=mm(ns)
   call init_pmove(z3(ns,:),np_old,lz,ierr)

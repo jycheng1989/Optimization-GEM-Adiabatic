@@ -57,7 +57,7 @@ module gem_com
   REAL,DIMENSION(:,:),allocatable :: yyamp,yyre,yyim
   complex,dimension(:,:),allocatable :: camp,campf
   REAL :: br0,lr0,qp,width,e0,vwidth,vwidthe,vcut,vpp,vt0,yd0
-  integer :: nonlin(5),nonline,ipara,isuni,ifluid,ishift,nopz,nopi(5),noen,nowe
+  integer :: nonlin(5),nonline,ipara,isuni,ifluid,ishift,nopz,noen,nowe
   complex :: IU
   real,dimension(:),allocatable :: coefx,coefy,coefz
   complex,dimension(1:8) :: apk,ptk,dpdtk
