@@ -724,7 +724,7 @@ subroutine weight
         wx0 = (rin+(j+1)*dr-r)/dr
         wx1 = 1.-wx0
         qr = wx0*sf(j)+wx1*sf(j+1)
-        dely=mod(2.*pi*lr0/q0*qr*sign(1.0,q0)+800.0*ly,ly)
+        dely = modulo(2.*pi*lr0/q0*qr*sign(1.0,q0), ly)
         deljp(i)=int(dely/dy)
         deljm(i)=0
         aweight=mod(dely,dy)
@@ -739,7 +739,7 @@ subroutine weight
         wx0 = (rin+(j+1)*dr-r)/dr
         wx1 = 1.-wx0
         qr = wx0*sf(j)+wx1*sf(j+1)
-        dely=mod(2.*pi*lr0/q0*qr*sign(1.0,q0)+800.*ly,ly)
+        dely = modulo(2.*pi*lr0/q0*qr*sign(1.0,q0), ly)
         deljm(i)=int(dely/dy)
         deljp(i)=0
         aweight=mod(dely,dy)
@@ -757,10 +757,10 @@ subroutine weight
 
   do j=0,jm
      do i=0,im
-        jpl(i,j)=mod(j+deljp(i)+8*jm,jm)
-        jpn(i,j)=mod(j+deljp(i)+1+8*jm,jm)
-        jmi(i,j)=mod(j-deljm(i)+8*jm,jm)
-        jmn(i,j)=mod(j-deljm(i)-1+8*jm,jm)
+        jpl(i,j) = modulo(j+deljp(i), jm)
+        jpn(i,j) = modulo(j+deljp(i)+1, jm)
+        jmi(i,j) = modulo(j-deljm(i)+8, jm)
+        jmn(i,j) = modulo(j-deljm(i)-1, jm)
         weightpn(i)=1.-weightp(i)
         weightmn(i)=1.-weightm(i)
      enddo
@@ -1744,7 +1744,7 @@ subroutine blendf
      wx0 = (rin+(i+1)*dr-r)/dr
      wx1 = 1.-wx0
      qr = wx0*sf(i)+wx1*sf(i+1)
-     dely(j) = mod(-pi2*lr0/q0*qr*sign(1.0,q0)+8000.*ly,ly)*tor
+     dely(j) = modulo(-pi2*lr0/q0*qr*sign(1.0,q0), ly) * tor
   enddo
   do j = 0,jm-1
      if(j.ge.(jm/2+1)) then

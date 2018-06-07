@@ -98,8 +98,8 @@ subroutine grid1(ip,n)
         do l=1,lr(1)
            xs=x3(ns,m)+rhox(l) !rwx(1,l)*rhog
            yt=y3(ns,m)+rhoy(l) !(rwy(1,l)+sz*rwx(1,l))*rhog
-           xt=mod(xs+800.*lx,lx)
-           yt=mod(yt+800.*ly,ly)
+           xt = modulo(xs, lx)
+           yt = modulo(yt, ly)
            xt = min(xt,lx-1.e-8)
            yt = min(yt,ly-1.e-8)
 
