@@ -50,7 +50,7 @@ program gem_main
   !call regtest_main(.True., '.', '100kparticles')
 
   ! test current code
-  call regtest_main(.False., '.', '100kparticles')
+  !call regtest_main(.False., '.', '100kparticles')
 
   call ftcamp
   lasttm=MPI_WTIME()
