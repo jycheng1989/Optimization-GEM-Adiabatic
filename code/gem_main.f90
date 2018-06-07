@@ -19,12 +19,13 @@ program gem_main
   if(iget.eq.1)then
      call restart(1,0)
   end if
-  starttm=MPI_WTIME()
 
   if(isft==1)then
      call ftcamp
      goto 100
   end if
+
+  starttm=MPI_WTIME()
 
   do  timestep=ncurr,nm
      tcurr = tcurr+dt
@@ -46,17 +47,20 @@ program gem_main
 
   end do
 
-  ! create test cases
-  !call regtest_main(.True., '.', '100kparticles')
-
-  ! test current code
-  !call regtest_main(.False., '.', '100kparticles')
-
-  call ftcamp
   lasttm=MPI_WTIME()
   tottm=lasttm-starttm
+  if (MyId == 0) print*, 'FULL MAIN LOOP TIME: ', tottm
+
+  ! create test cases
+  !call regtest_main(.True., '.', 'regtest')
+
+  ! test current code
+  !call regtest_main(.False., '.', 'regtest')
+
+  call ftcamp
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
+!
 100 call MPI_FINALIZE(ierr)
 
 end program gem_main
