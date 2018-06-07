@@ -7,7 +7,7 @@ LIBS = $(DFFTPACK)
 PLIB = gem_pputil.o
 
 F90 = mpif90
-OPT = -fast -r8 -Kieee -llapack -lblas -Minfo=accel -acc -ta=tesla:cc70,managed
+OPT = -fast -r8 -Kieee -llapack -lblas -Mpreprocess -Minfo=accel -acc -ta=tesla:cc70,managed
 #OPT = -FR -r8 -heap-arrays -O2 -g -traceback -check bounds
 #OPT = -FR -r8 -O3
 LDFLAGS = 
@@ -18,7 +18,7 @@ gem_main: gem_equil.o gem_main.o gem_outd.o gem_fcnt.o gem_pputil.o gem_com.mod 
 	$(F90)  -o gem_main $(OPT) $(OBJS) $(PLIB) $(LIBS) 
 
 gem_pputil.o: gem_pputil.f90
-	$(F90) -c gem_pputil.f90 -fast -r8 -Kieee -llapack -lblas -Minfo=accel -acc -ta=tesla:cc70
+	$(F90) -c gem_pputil.f90 -fast -r8 -Kieee -llapack -lblas -Mpreprocess -Minfo=accel -acc -ta=tesla:cc70
 
 gem_com.mod: gem_com.f90 gem_pputil.o
 	$(F90) -c $(OPT) gem_com.f90

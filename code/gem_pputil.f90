@@ -1,7 +1,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 MODULE gem_pputil
-!
+
 !  use fft_wrapper
   IMPLICIT NONE
   PRIVATE
@@ -17,6 +17,7 @@ MODULE gem_pputil
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: s_counts, s_displ
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: r_counts, r_displ
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: ipsend, iphole
+!$acc declare create(s_buf,r_buf,s_counts,r_counts,ipsend,iphole,s_displ)
 !
   INTERFACE disp
      MODULE PROCEDURE dispi, dispr
@@ -56,9 +57,11 @@ CONTAINS
     !
     !  Local vars
     INTEGER :: nsize, ksize
-    INTEGER :: i, ip, iz, ih, iwork
+    INTEGER :: i, ip, iz, ih(1), iwork
+
     REAL :: dzz, xt
     INTEGER, DIMENSION(0:nvp-1) :: isb
+!$acc declare create(isb)
     !
     !----------------------------------------------------------------------
     !              0.   Allocate fixed size arrays
@@ -72,7 +75,12 @@ CONTAINS
     !              1.  Construct send buffer
     !
     dzz = lz / nvp
+!$acc kernels
     s_counts = 0
+!$acc end kernels
+
+!$acc kernels
+!$acc loop seq
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
@@ -80,10 +88,15 @@ CONTAINS
           s_counts(iz) = s_counts(iz)+1
        END IF
     END DO
+!$acc end kernels
+
+!$acc update host (s_counts)
+
     s_displ(0) = 0
     DO i=1,nvp-1
        s_displ(i) = s_displ(i-1) + s_counts(i-1)
     END DO
+!$acc update device(s_displ)
     !
     nsize = sum(s_counts)
     IF( .not. ALLOCATED(s_buf) ) THEN
@@ -104,28 +117,37 @@ CONTAINS
     !              2.  Construct (sorted) pointers to holes
     !
     isb(0:nvp-1) = s_displ(0:nvp-1)
+
+!$acc update device(isb)
+
+!$acc kernels copy(ih)
     ih = 0
+!$acc loop seq
     DO ip=1,np
-       xt = MODULO(xp(ip), lz)            !!! Assume periodicity
-       iz = INT(xt/dzz)
+      xt = MODULO(xp(ip), lz)            !!! Assume periodicity
+      iz = INT(xt/dzz)
        IF( iz .ne. GCLR ) THEN
           isb(iz) = isb(iz)+1
           ipsend(isb(iz)) = ip
-          ih = ih+1
-          iphole(ih) = ip
+          ih(1) = ih(1)+1
+          iphole(ih(1)) = ip
        END IF
     END DO
+!$acc end kernels
+
     !
     !----------------------------------------------------------------------
     !              3.  Construct receive buffer
     !
     CALL MPI_ALLTOALL(s_counts, 1, MPI_INTEGER, &
          & r_counts, 1, MPI_INTEGER, TUBE_COMM, ierr)
+
     r_displ(0) = 0
     DO i=1,nvp-1
        r_displ(i) = r_displ(i-1) + r_counts(i-1)
     END DO
     !
+
     nsize = sum(r_counts)
     IF( .not. ALLOCATED(r_buf) ) THEN
        ksize=2*nsize         ! To prevent too much futur reallocations
@@ -162,7 +184,7 @@ CONTAINS
 !
 !  Local vars
     INTEGER :: nsize
-    INTEGER :: i, ip, iz, ih, isrc
+    INTEGER :: i, ip(1), iz, ih, isrc
     INTEGER :: nhole, mhole, nrrecv, nrsend, nptot_old, nptot
     INTEGER :: ind, count, tot_count, iwork
 !
@@ -174,6 +196,7 @@ CONTAINS
 !----------------------------------------------------------------------
 !              1.  Fill send buffer
 !
+!$acc kernels
     DO i=0,nvp-1
        IF( s_counts(i) .GT. 0 ) THEN
           isrt = s_displ(i)+1
@@ -181,6 +204,7 @@ CONTAINS
           s_buf(isrt:iend) = xp(ipsend(isrt:iend))
        END IF
     END DO
+!$acc end kernels
 !----------------------------------------------------------------------
 !              2.   Initiate non-blocking send/receive
 !
@@ -191,17 +215,23 @@ CONTAINS
           nrrecv=nrrecv+1
           id_source(nrrecv) = i
           isrt = r_displ(i)+1
+!$acc host_data use_device (r_buf)
           CALL MPI_IRECV(r_buf(isrt), r_counts(i), MPI_REAL8,&
                & i, pmove_tag, TUBE_COMM, r_requ(nrrecv), ierr)
+!$acc end host_data
        END IF
     END DO
+
     nrsend=0             !......... Start non-blocking SYNCHRONOUS send
+
     DO i=0,nvp-1
        IF(s_counts(i) .GT. 0 ) THEN
           nrsend=nrsend+1
           isrt = s_displ(i)+1
+!$acc host_data use_device(s_buf)
           CALL MPI_ISSEND(s_buf(isrt), s_counts(i), MPI_REAL8,&
                & i, pmove_tag, TUBE_COMM, s_requ(nrsend), ierr)
+!$acc end host_data
        END IF
     END DO
 !
@@ -209,12 +239,14 @@ CONTAINS
 !              3.   Remove holes and compress part. arrays
 !
     nhole = sum(s_counts)
-    ip = np_old
+    ip(1) = np_old
+!$acc serial copy(ip(1))
     DO ih = nhole, 1, -1
-       xp(iphole(ih)) = xp(ip)
+       xp(iphole(ih)) = xp(ip(1))
        ip = ip-1
     END DO
-    np_new = ip
+!$acc end serial
+    np_new = ip(1)
 !
 !----------------------------------------------------------------------
 !              4.   Store incoming part. to the part. arrays
@@ -231,12 +263,14 @@ CONTAINS
        tot_count =  tot_count+count
     END DO
 !
+!$acc kernels
     IF( tot_count .GT. 0 ) THEN
        isrt = np_new + 1
        iend = np_new + tot_count
        xp(isrt:iend) = r_buf(1:tot_count)
        np_new = iend
     END IF
+!$acc end kernels
 !
 !----------------------------------------------------------------------
 !              5.   Epilogue
@@ -264,6 +298,7 @@ CONTAINS
 !
     use mpi
 
+
     INTEGER, INTENT(OUT) :: ierr
 !
 !   Local vars
@@ -279,6 +314,7 @@ CONTAINS
     character(len=*), INTENT(in) :: string
     INTEGER :: i, ierr
 !
+
     DO i=0,nvp-1
        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
        IF(i.eq.me) THEN
@@ -346,6 +382,9 @@ CONTAINS
       SUBROUTINE ppinit(idproc,nproc,ntube,com1,com2)
 !
      use mpi
+#ifdef _OPENACC
+     use openacc
+#endif
      INTEGER, INTENT(IN) :: ntube
      INTEGER, INTENT(OUT) :: nproc
      INTEGER, INTENT(OUT) :: idproc,com1,com2
@@ -354,6 +393,13 @@ CONTAINS
      CALL MPI_INIT(ierr)
      CALL MPI_COMM_SIZE(MPI_COMM_WORLD, npp, ierr)
      CALL MPI_COMM_RANK(MPI_COMM_WORLD, me, ierr)
+#ifdef _OPENACC
+     if (acc_get_num_devices(acc_get_device_type()) .gt. 1) then
+        call acc_set_device_num(me,acc_get_device_type())
+        write(*,*) "My",me," device number is:",acc_get_device_num(acc_get_device_type())
+     endif
+#endif
+
      nproc = npp
      IDPROC = me
 ! 
@@ -551,6 +597,7 @@ CONTAINS
     DO i=1,nvp
        idsr(i) = iand(nvp-1, ieor(me, i-1))
     END DO
+
 !----------------------------------------------------------------------
 !              1.   Send/receive bloks
 !
@@ -906,8 +953,10 @@ CONTAINS
       CALL MPI_SENDRECV(f(:,np), n1, MPI_REAL8, right, tag,&
            & buffer, n1, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,1) = f(:,1) + buffer
       f(:,np) = 0.0
+!$acc end kernels
     END SUBROUTINE guard_lin_add
 !...
     SUBROUTINE guard_quad_add
@@ -915,14 +964,18 @@ CONTAINS
       CALL MPI_SENDRECV(f(:,np), n1, MPI_REAL8, right, tag,&
            & buffer, n1, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,2) = f(:,2) + buffer
       f(:,np) = 0.0
+!$acc end kernels
       tag = tag+1
       CALL MPI_SENDRECV(f(:,1), n1, MPI_REAL8, left, tag,&
            & buffer, n1, MPI_REAL8, right, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,np-1) = f(:,np-1) + buffer
       f(:,1) = 0.0
+!$acc end kernels
     END SUBROUTINE guard_quad_add
 !...
     SUBROUTINE guard_cub_add
@@ -930,20 +983,26 @@ CONTAINS
       CALL MPI_SENDRECV(f(:,np), n1, MPI_REAL8, right, tag,&
            & buffer, n1, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,3) = f(:,3) + buffer
       f(:,np) = 0.0
+!$acc end kernels
       tag = tag+1
       CALL MPI_SENDRECV(f(:,np-1), n1, MPI_REAL8, right, tag,&
            & buffer, n1, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,2) = f(:,2) + buffer
       f(:,np-1) = 0.0
+!$acc end kernels
       tag = tag+1
       CALL MPI_SENDRECV(f(:,1), n1, MPI_REAL8, left, tag,&
            & buffer, n1, MPI_REAL8, right, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,np-2) = f(:,np-2) + buffer
       f(:,1) = 0.0
+!$acc end kernels
     END SUBROUTINE guard_cub_add
 !...
     SUBROUTINE guard_lin_copy
@@ -1041,8 +1100,10 @@ CONTAINS
       CALL MPI_SENDRECV(f(:,:,np), n1n2, MPI_REAL8, right, tag,&
            & buffer, n1n2, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,:,1) = f(:,:,1) + buffer
       f(:,:,np) = 0.0
+!$acc end kernels
     END SUBROUTINE guard_lin_add
 !...
     SUBROUTINE guard_quad_add
@@ -1050,14 +1111,18 @@ CONTAINS
       CALL MPI_SENDRECV(f(:,:,np), n1n2, MPI_REAL8, right, tag,&
            & buffer, n1n2, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,:,2) = f(:,:,2) + buffer
       f(:,:,np) = 0.0
+!$acc end kernels
       tag = tag+1
       CALL MPI_SENDRECV(f(:,:,1), n1n2, MPI_REAL8, left, tag,&
            & buffer, n1n2, MPI_REAL8, right, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,:,np-1) = f(:,:,np-1) + buffer
       f(:,:,1) = 0.0
+!$acc end kernels
     END SUBROUTINE guard_quad_add
 !...
     SUBROUTINE guard_cub_add
@@ -1065,20 +1130,26 @@ CONTAINS
       CALL MPI_SENDRECV(f(:,:,np), n1n2, MPI_REAL8, right, tag,&
            & buffer, n1n2, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,:,3) = f(:,:,3) + buffer
       f(:,:,np) = 0.0
+!$acc end kernels
       tag = tag+1
       CALL MPI_SENDRECV(f(:,:,np-1), n1n2, MPI_REAL8, right, tag,&
            & buffer, n1n2, MPI_REAL8, left, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,:,2) = f(:,:,2) + buffer
       f(:,:,np-1) = 0.0
+!$acc end kernels
       tag = tag+1
       CALL MPI_SENDRECV(f(:,:,1), n1n2, MPI_REAL8, left, tag,&
            & buffer, n1n2, MPI_REAL8, right, tag,&
            & MPI_COMM_WORLD, status, ierr)
+!$acc kernels
       f(:,:,np-2) = f(:,:,np-2) + buffer
       f(:,:,1) = 0.0
+!$acc end kernels
     END SUBROUTINE guard_cub_add
 !...
     SUBROUTINE guard_lin_copy
