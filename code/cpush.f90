@@ -23,10 +23,8 @@ subroutine cpush(n,ns)
 
   call system_clock(count1, clockrate, clockmax)
 
-!$acc kernels
   sbuf(1:10) = 0.
   rbuf(1:10) = 0.
-!$acc end kernels
   myavewi = 0.
   myke=0.
   mypfl_es=0.
@@ -247,19 +245,16 @@ subroutine cpush(n,ns)
   enddo
 !$acc end parallel
 
-!$acc kernels
   sbuf(1)=myke
   sbuf(2)=myefl_es(nsubd/2)
   sbuf(3)=mypfl_es(nsubd/2)
   sbuf(4)=mynos
   sbuf(5)=myavewi
-!$acc end kernels
 
   call MPI_ALLREDUCE(sbuf,rbuf,10,  &
        MPI_REAL8,MPI_SUM,           &
        MPI_COMM_WORLD,ierr)
 
-!$acc kernels
   ketemp=rbuf(1)
   efltemp=rbuf(2)
   pfltemp=rbuf(3)
@@ -267,59 +262,50 @@ subroutine cpush(n,ns)
   avewi(ns,n) = rbuf(5)/( float(tmm(1)) )
   nos(1,n)=nostemp/( float(tmm(1)) )
   ke(1,n)=ketemp/( 2.*float(tmm(1))*mims(ns) )
-!$acc end kernels
 
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
-!$acc kernels
   sbuf(1:nsubd) = myefl_es(1:nsubd)
-!$acc end kernels
   call MPI_ALLREDUCE(sbuf,rbuf,10,  &
        MPI_REAL8,MPI_SUM,  &
        MPI_COMM_WORLD,ierr)
-!$acc kernels
   do k = 1,nsubd
      efl_es(ns,k,n)=rbuf(k)/( float(tmm(1)) )*totvol/vol(k)*cn0s(ns)
   end do
 
   sbuf(1:nsubd) = myefl_em(1:nsubd)
-!$acc end kernels
 
   call MPI_ALLREDUCE(sbuf,rbuf,10,  &
        MPI_REAL8,MPI_SUM,  &
        MPI_COMM_WORLD,ierr)
 
-!$acc kernels
   do k = 1,nsubd
      efl_em(ns,k,n)=rbuf(k)/( float(tmm(1)) )*totvol/vol(k)*cn0s(ns)
   end do
 
   sbuf(1:nsubd) = mypfl_es(1:nsubd)
-!$acc end kernels
 
   call MPI_ALLREDUCE(sbuf,rbuf,10,  &
        MPI_REAL8,MPI_SUM,  &
        MPI_COMM_WORLD,ierr)
-!$acc kernels
   do k = 1,nsubd
      pfl_es(ns,k,n)=rbuf(k)/( float(tmm(1)) )*totvol/vol(k)*cn0s(ns)
   end do
 
   sbuf(1:nsubd) = mypfl_em(1:nsubd)
-!$acc end kernels
 
   call MPI_ALLREDUCE(sbuf,rbuf,10,  &
        MPI_REAL8,MPI_SUM,  &
        MPI_COMM_WORLD,ierr)
-!$acc kernels
   do k = 1,nsubd
      pfl_em(ns,k,n)=rbuf(k)/( float(tmm(1)) )*totvol/vol(k)*cn0s(ns)
   end do
-!$acc end kernels
 
   !      pfl(1,n)=pfltemp/( float(tmm(1)) )
   !      efl(1,n)=mims(ns)/tets(1)*efltemp/( float(tmm(1)) )
 
+!$acc host_data
+{
   np_old=mm(ns)
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
   call init_pmove(z3(ns,:),np_old,lz,ierr)
@@ -358,9 +344,8 @@ subroutine cpush(n,ns)
   if (ierr.ne.0) call ppexit
 
   call end_pmove(ierr)
-!$acc kernels
   mm(ns)=np_new
-!$acc end kernels
+}
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL CPUSH:', (count2 - count1) / real(clockrate)

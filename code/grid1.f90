@@ -32,10 +32,8 @@ subroutine grid1(ip,n)
   ns=1
   if(idg.eq.1)write(*,*)'enter ion grid1',mm(1)
   do ns = 1,nsm
-!$acc kernels
      den(ns,:,:,:)=0.
      jpar(ns,:,:,:)=0.
-!$acc end kernels
      myden = 0.
      myjpar = 0.
      mydti = 0.
@@ -133,7 +131,6 @@ subroutine grid1(ip,n)
      !      call filter(myden(:,:,:))
      !      call filter(myjpar(:,:,:))
 
-!$acc parallel loop gang vector collapse(3)
      do i=0,im
         do j=0,jm
            do k=0,mykm
@@ -143,9 +140,7 @@ subroutine grid1(ip,n)
            enddo
         enddo
      enddo
-!$acc end parallel
 
-!$acc parallel loop gang vector collapse(3)
      do i = 0,im
         do j = 0,jm
            do k = 0,1
@@ -153,27 +148,14 @@ subroutine grid1(ip,n)
            end do
         end do
      end do
-!$acc end parallel
 
 
 
-! #ifdef GPUDIRECT
-! !$acc host_data use_device(den,dti)
      call MPI_ALLREDUCE(den(ns,0:im,0:jm,0:1),  &
           dti(ns,0:im,0:jm,0:1),             &
           (imx+1)*(jmx+1)*2,MPI_REAL8,       &
           MPI_SUM,GRID_COMM,ierr)
-! !$acc end host_data
-! #else
-! !$acc update host (den,dti)
-!      call MPI_ALLREDUCE(den(ns,0:im,0:jm,0:1),  &
-!           dti(ns,0:im,0:jm,0:1),             &
-!           (imx+1)*(jmx+1)*2,MPI_REAL8,       &
-!           MPI_SUM,GRID_COMM,ierr)
-! !$acc update device(den,dti)
-! #endif
 
-!$acc parallel loop !gang vector collapse(3)
      do i=0,im
         do j=0,jm
            do k=0,mykm
@@ -182,7 +164,6 @@ subroutine grid1(ip,n)
            enddo
         enddo
      enddo
-!$acc end parallel
   end do
 
   call system_clock(count2, clockrate, clockmax)

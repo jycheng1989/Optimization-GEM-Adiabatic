@@ -20,9 +20,7 @@ subroutine ppush(n,ns)
 
   pidum = 1./(pi*2)**1.5*vwidth**3
   mynopi = 0
-!$acc kernels
   nopi(ns) = 0
-!$acc end kernels
 
 
 !$acc parallel loop gang vector private(rhox,rhoy)
@@ -239,6 +237,8 @@ subroutine ppush(n,ns)
   call MPI_ALLREDUCE(mynopi,nopi(ns),1,MPI_integer, &
        MPI_SUM, MPI_COMM_WORLD,ierr)
 
+!$acc host_data
+{
   np_old=mm(ns)
   call init_pmove(z3(ns,:),np_old,lz,ierr)
 
@@ -277,9 +277,8 @@ subroutine ppush(n,ns)
   if (ierr.ne.0) call ppexit
 
   call end_pmove(ierr)
-!$acc kernels
   mm(ns)=np_new
-!$acc end kernels
+}
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL PPUSH:', (count2 - count1) / real(clockrate)

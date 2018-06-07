@@ -44,12 +44,10 @@ subroutine gkps_adiabatic_electron(nstep,ip)
     allocate(ipiv(imx-1,imx-1,0:jcnt-1,0:1),ipiv_zonal(imx-1,imx-1,0:jcnt-1,0:1))
     allocate(formphi(0:imx-1,0:jcnt-1,0:1))
 
-!$acc kernels
     mx=0.0
     mx_zonal=0.0
     mx0=0.0
     mx_tmp=0.0
-!$acc end kernels
 
     ! restart the matrix
     if(iget.eq.1)then
@@ -138,7 +136,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
     enddo
 
     ! construct the matrix MX for Poisson sovler
-!$acc kernels
     do k=0,1
        do j=0,jcnt-1
           do i=1,imx-1
@@ -186,7 +183,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
           enddo
        enddo
     enddo
-!$acc end kernels
 
      ! flux average of mx0
      mx_tmp=0.0
@@ -197,7 +193,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
      icount=(imx-1)*2
      call MPI_ALLREDUCE(jacob_theta,jacob_theta_tmp,icount,MPI_REAL8,MPI_SUM,TUBE_COMM,ierr)
 
-!$acc kernels
      jacob_theta=jacob_theta_tmp
      do i=1,imx-1
         do k=0,1
@@ -212,7 +207,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
 
      mx_zonal(:,:,0,:)=cmplx(real(mx_zonal(:,:,0,:)),0.0)
      mx(:,:,0,:)=cmplx(real(mx(:,:,0,:)),0.0)
-!$acc end kernels
 
      do k=0,1
         do j=0,jcnt-1
@@ -251,7 +245,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
   !now do field solve...
 
   ! calcaulte the zonal part of density
-!$acc kernels
   do i=0,im
      do k=0,1
         rho_zonal_tmp(i,k)=0.0
@@ -262,7 +255,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
         enddo
      enddo
   enddo
-!$acc end kernels
 
   rho_zonal=0.0
   icount=(im+1)*2
@@ -277,7 +269,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
   enddo
  
   ! different source term for zonal and non-zonal term
-!$acc kernels
   do i=0,nxpp
      do j=0,jm
         do k=0,1
@@ -287,7 +278,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
         enddo
      enddo
   enddo
-!$acc end kernels
 
 
   ! expand the source term into sin tranformation
@@ -308,7 +298,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
   enddo
 
   !  from rho(kx,ky) to phi(kx,ky)
-!$acc kernels
   do k = 0,1
      do j = 0,jmx-1
         do i = 0,imx-1
@@ -316,27 +305,21 @@ subroutine gkps_adiabatic_electron(nstep,ip)
         enddo
      enddo
   enddo
-!$acc end kernels
 
   !  from phi(kx,ky) to phi(x,y)
   do k=0,mykm
      do i=0,imx-1
-        !$acc kernels
         do j=0,jmx-1
           tmpy(j)=temp3dxy(i,j,k)
         enddo
-        !$acc end kernels
         call ccfft('y',1,jmx,1.0,tmpy,coefy,worky,0)
-        !$acc kernels
         do j=0,jmx-1
            temp3dxy(i,j,k)=tmpy(j)  ! phi(x,y)
         enddo
-        !$acc end kernels
      enddo
   enddo
  
   ! here phi is zonal-phi
-  !$acc kernels
   do i=0,nxpp-1
      do j=0,jm-1
         do k=0,mykm
@@ -344,7 +327,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
         enddo
      enddo
   enddo
-  !$acc end kernels
   call enfz(phi(:,:,:))
 
   ! for the solver for ky=0 with ky!=0 part together, the difference is their source term, 
@@ -352,7 +334,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
   ! the matrix is same, i.e. np-\phi (no matter k_y=0 or k_y!=0)
  
   ! the ky=0 source term
-!$acc kernels
   do i=0,nxpp
      do j=0,jm
         do k=0,1
@@ -360,7 +341,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
         enddo
      enddo
   enddo
-!$acc end kernels
   call dcmpy(u_zonal(0:imx-1,0:jmx-1,0:1),v_zonal)
 
   temp3dxy=0.
@@ -379,7 +359,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
   enddo
 
   !  from rho(kx,ky) to phi(kx,ky)
-!$acc kernels
   do k=0,1
      do j=0,jmx-1
         do i=0,imx-1
@@ -387,26 +366,20 @@ subroutine gkps_adiabatic_electron(nstep,ip)
         enddo
      enddo
   enddo
-!$acc end kernels
 
   !  from phi(kx,ky) to phi(x,y)
   do k=0,mykm
      do i=0,imx-1
-        !$acc kernels
         do j=0,jmx-1
            tmpy(j)=temp3dxy(i,j,k)
         enddo
-        !$acc end kernels
         call ccfft('y',1,jmx,1.0,tmpy,coefy,worky,0)
-        !$acc kernels
         do j=0,jmx-1
            temp3dxy(i,j,k)=tmpy(j)  ! phi(x,y)
         enddo
-        !$acc end kernels
      enddo
   enddo
 
-!$acc kernels
   do i=0,nxpp-1
      do j=0,jm-1
         do k=0,mykm
@@ -414,7 +387,6 @@ subroutine gkps_adiabatic_electron(nstep,ip)
         enddo
      enddo
   enddo
-!$acc end kernels
 
   !    x-y boundary points 
   call enfxy(phi(:,:,:))
