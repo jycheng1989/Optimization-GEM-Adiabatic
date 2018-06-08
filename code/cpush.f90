@@ -23,6 +23,8 @@ subroutine cpush(n,ns)
 
   call system_clock(count1, clockrate, clockmax)
 
+!$acc enter data
+
 !$acc kernels
   sbuf(1:10) = 0.
   rbuf(1:10) = 0.
@@ -364,6 +366,8 @@ subroutine cpush(n,ns)
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL CPUSH:', (count2 - count1) / real(clockrate)
+
+!$acc exit data
 
 end subroutine cpush
 

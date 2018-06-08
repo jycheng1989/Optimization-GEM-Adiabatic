@@ -26,6 +26,8 @@ subroutine grid1(ip,n)
 
   call system_clock(count1, clockrate, clockmax)
 
+!$acc enter data
+
   rho=0.
   jion = 0.
   mydte = 0.
@@ -187,6 +189,8 @@ subroutine grid1(ip,n)
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL GRID1:', (count2 - count1) / real(clockrate)
+
+!$acc exit data
 
 end subroutine grid1
 

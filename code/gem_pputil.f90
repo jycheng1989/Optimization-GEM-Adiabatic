@@ -61,7 +61,9 @@ CONTAINS
 
     REAL :: dzz, xt
     INTEGER, DIMENSION(0:nvp-1) :: isb
+
 !$acc declare create(isb)
+!$acc enter data
     !
     !----------------------------------------------------------------------
     !              0.   Allocate fixed size arrays
@@ -171,6 +173,8 @@ CONTAINS
     !
     pmove_tag = 101
     !
+!$acc exit data
+
   END SUBROUTINE init_pmove
 !===========================================================================
   SUBROUTINE pmove(xp, np_old, np_new, ierr)
@@ -195,6 +199,7 @@ CONTAINS
 !
 !----------------------------------------------------------------------
 !              1.  Fill send buffer
+!$acc enter data
 !
 !$acc kernels
     DO i=0,nvp-1
@@ -290,6 +295,8 @@ CONTAINS
        ierr = 1
     END IF
 !    call ppsum(ierr)
+
+!$acc exit data
 !
 !----------------------------------------------------------------------!
   END SUBROUTINE pmove

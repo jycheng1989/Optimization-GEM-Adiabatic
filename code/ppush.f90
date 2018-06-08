@@ -17,6 +17,8 @@ subroutine ppush(n,ns)
 
   call system_clock(count1, clockrate, clockmax)
 
+!$acc enter data
+
   pidum = 1./(pi*2)**1.5*vwidth**3
 
   !$acc parallel loop gang vector private(rhox,rhoy)
@@ -273,6 +275,8 @@ subroutine ppush(n,ns)
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL PPUSH:', (count2 - count1) / real(clockrate)
+  
+!$acc exit data
 
 end subroutine ppush
 
