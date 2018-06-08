@@ -2,6 +2,10 @@ subroutine ppush(n,ns)
 
   use gem_com
   use gem_equil
+  #ifdef _OPENACC
+     use openacc
+  #endif
+
   implicit none
   real :: phip,exp1,eyp,ezp,delbxp,delbyp,dpdzp,dadzp,aparp
   real :: wx0,wx1,wy0,wy1,wz0,wz1,dum,vxdum,dum1,bstar
@@ -14,7 +18,7 @@ subroutine ppush(n,ns)
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
 
   integer :: count1, count2, clockrate, clockmax
-
+  logical :: in_device
   call system_clock(count1, clockrate, clockmax)
 
 !$acc enter data
@@ -232,6 +236,11 @@ subroutine ppush(n,ns)
   !$acc end parallel
 
   np_old=mm(ns)
+  in_device=acc_is_present(z3)
+  write(*,*)'in_device',in_device
+  !!$acc data present(z3,x2,x3,y2,y3,z2,z3,u2,u3,w2,w3,mu,xii,z0i,pzi,eki,u0i)
+  !!$acc host_data use_device(z3,x2,x3,y2,y3,z2,z3,u2,u3,w2,w3,mu,xii,z0i,pzi,eki,u0i)
+
   call init_pmove(z3(ns,:),np_old,lz,ierr)
 
   call pmove(x2(ns,:),np_old,np_new,ierr)
@@ -267,7 +276,8 @@ subroutine ppush(n,ns)
   if (ierr.ne.0) call ppexit
   call pmove(u0i(ns,:),np_old,np_new,ierr)
   if (ierr.ne.0) call ppexit
-
+  !!$acc end host_data
+  !!$acc end data
   call end_pmove(ierr)
 !$acc kernels
   mm(ns)=np_new

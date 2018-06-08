@@ -324,8 +324,11 @@ subroutine cpush(n,ns)
 
   np_old=mm(ns)
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  !!$acc data present(z3,x2,x3,y2,y3,z2,z3,u2,u3,w2,w3,mu,xii,z0i,pzi,eki,u0i)
+  !!$acc host_data use_device(z3,x2,x3,y2,y3,z2,z3,u2,u3,w2,w3,mu,xii,z0i,pzi,eki,u0i)
+ 
   call init_pmove(z3(ns,:),np_old,lz,ierr)
-  !     
+       
   call pmove(x2(ns,:),np_old,np_new,ierr)
   if (ierr.ne.0) call ppexit
   call pmove(x3(ns,:),np_old,np_new,ierr)
@@ -358,8 +361,9 @@ subroutine cpush(n,ns)
   if (ierr.ne.0) call ppexit
   call pmove(u0i(ns,:),np_old,np_new,ierr)
   if (ierr.ne.0) call ppexit
-
   call end_pmove(ierr)
+  !!$acc end host_data
+  !!$acc end data
 !$acc kernels
   mm(ns)=np_new
 !$acc end kernels
