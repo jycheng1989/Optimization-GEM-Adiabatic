@@ -17,7 +17,7 @@ MODULE gem_pputil
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: s_counts, s_displ
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: r_counts, r_displ
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: ipsend, iphole
-!$acc declare create(s_buf,r_buf,s_counts,r_counts,ipsend,iphole,s_displ)
+!$acc declare create(s_buf,r_buf,s_counts,ipsend,iphole,s_displ)
 !
   INTERFACE disp
      MODULE PROCEDURE dispi, dispr
@@ -61,7 +61,6 @@ CONTAINS
 
     REAL :: dzz, xt
     INTEGER, DIMENSION(0:nvp-1) :: isb
-
 !$acc declare create(isb)
 !$acc enter data
     !
@@ -76,22 +75,24 @@ CONTAINS
     !----------------------------------------------------------------------
     !              1.  Construct send buffer
     !
+!$acc update host(xp)
     dzz = lz / nvp
-!$acc kernels
+!!$acc kernels present(s_counts)
     s_counts = 0
-!$acc end kernels
+!!$acc end kernels
 
-!$acc parallel loop gang vector
+!!$acc kernels present(xp,s_counts)
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
        IF( iz .ne. GCLR )THEN
-          !$acc atomic update
+!!$acc atomic update
           s_counts(iz) = s_counts(iz)+1
        END IF
     END DO
+!!$acc end kernels
 
-!$acc update host (s_counts)
+!!$acc update host (s_counts)
 
     s_displ(0) = 0
     DO i=1,nvp-1
@@ -119,11 +120,11 @@ CONTAINS
     !
     isb(0:nvp-1) = s_displ(0:nvp-1)
 
-!$acc update device(isb)
+!!$acc update device(isb)
 
-!$acc kernels copy(ih)
+!!$acc kernels copy(ih) present(xp,isb,ipsend,iphole)
     ih = 0
-!$acc loop seq
+!!$acc loop seq
     DO ip=1,np
       xt = MODULO(xp(ip), lz)            !!! Assume periodicity
       iz = INT(xt/dzz)
@@ -134,7 +135,7 @@ CONTAINS
           iphole(ih(1)) = ip
        END IF
     END DO
-!$acc end kernels
+!!$acc end kernels
 
     !
     !----------------------------------------------------------------------
@@ -172,8 +173,8 @@ CONTAINS
     !
     pmove_tag = 101
     !
+!$acc update device(iphole,ipsend)
 !$acc exit data
-
   END SUBROUTINE init_pmove
 !===========================================================================
   SUBROUTINE pmove(xp, np_old, np_new, ierr)
@@ -198,17 +199,17 @@ CONTAINS
 !
 !----------------------------------------------------------------------
 !              1.  Fill send buffer
-!$acc enter data
 !
-!$acc kernels
+!$acc enter data
     DO i=0,nvp-1
        IF( s_counts(i) .GT. 0 ) THEN
           isrt = s_displ(i)+1
           iend = s_displ(i)+s_counts(i)
+!$acc kernels present(xp,ipsend) vector_length(64)
           s_buf(isrt:iend) = xp(ipsend(isrt:iend))
+!$acc end kernels
        END IF
     END DO
-!$acc end kernels
 !----------------------------------------------------------------------
 !              2.   Initiate non-blocking send/receive
 !
@@ -244,10 +245,10 @@ CONTAINS
 !
     nhole = sum(s_counts)
     ip(1) = np_old
-!$acc serial copy(ip(1))
+!$acc serial copy(ip(1)) present(xp,iphole)
     DO ih = nhole, 1, -1
        xp(iphole(ih)) = xp(ip(1))
-       ip = ip-1
+       ip(1) = ip(1)-1
     END DO
 !$acc end serial
     np_new = ip(1)
@@ -267,7 +268,7 @@ CONTAINS
        tot_count =  tot_count+count
     END DO
 !
-!$acc kernels
+!$acc kernels present(xp,r_buf)
     IF( tot_count .GT. 0 ) THEN
        isrt = np_new + 1
        iend = np_new + tot_count
@@ -294,7 +295,6 @@ CONTAINS
        ierr = 1
     END IF
 !    call ppsum(ierr)
-
 !$acc exit data
 !
 !----------------------------------------------------------------------!
