@@ -38,7 +38,7 @@ subroutine cpush(n,ns)
   nostemp=0.
   pidum = 1./(pi*2)**1.5*vwidth**3
 
-  !$acc parallel loop gang vector private(rhox,rhoy)
+  !$acc parallel loop gang vector private(rhox,rhoy) copy(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
   do m=1,mm(ns)
      r=x3(ns,m)-0.5*lx+lr0
 

@@ -102,6 +102,8 @@ module gem_com
   REAL,DIMENSION(:,:),allocatable :: x3,y3,z3,u3
   REAL,DIMENSION(:,:),allocatable :: w2,w3
 
+!$acc declare create(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
+
   REAL,DIMENSION(:),allocatable :: mue,xie,pze,eke,z0e,u0e
   REAL,DIMENSION(:),allocatable :: x2e,y2e,z2e,u2e,mue2
   REAL,DIMENSION(:),allocatable :: x3e,y3e,z3e,u3e,mue3

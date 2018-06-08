@@ -55,8 +55,8 @@ CONTAINS
     INTEGER, INTENT(out) :: ierr
     !
     !  Local vars
-    INTEGER :: nsize, ksize, sizexp
-    INTEGER :: i, ip, iz, ih(1), iwork
+    INTEGER :: nsize, ksize
+    INTEGER :: i, ip, iz, ih, iwork
     REAL :: dzz, xt
     INTEGER, DIMENSION(0:nvp-1) :: isb
     !
@@ -73,7 +73,7 @@ CONTAINS
     !
     dzz = lz / nvp
     s_counts = 0
-!$acc parallel loop gang vector
+!$acc parallel loop gang vector copy(ip,np,xt,lz,iz,GCLR,s_counts,xp)
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
@@ -89,7 +89,7 @@ CONTAINS
     !
     nsize = sum(s_counts)
     IF( .not. ALLOCATED(s_buf) ) THEN
-       ksize=2*nsize         ! To prevent too much futur reallocations
+       ksize=2*nsize         ! To prevent too much future reallocations
        ALLOCATE(s_buf(1:ksize))
        ALLOCATE(ipsend(1:ksize))
        ALLOCATE(iphole(1:ksize))
@@ -106,16 +106,16 @@ CONTAINS
     !              2.  Construct (sorted) pointers to holes
     !
     isb(0:nvp-1) = s_displ(0:nvp-1)
-    ih(1) = 0
-!$acc serial
+    ih = 0
+!$acc serial copy(ih,ip,np,xt,lz,iz,GCLR,isb,ipsend,iphole,xp)
     DO ip=1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
        IF( iz .ne. GCLR ) THEN
           isb(iz) = isb(iz)+1
           ipsend(isb(iz)) = ip
-          ih(1) = ih(1)+1
-          iphole(ih(1)) = ip
+          ih = ih+1
+          iphole(ih) = ip
        END IF
     END DO
 !$acc end serial
@@ -132,7 +132,7 @@ CONTAINS
     !
     nsize = sum(r_counts)
     IF( .not. ALLOCATED(r_buf) ) THEN
-       ksize=2*nsize         ! To prevent too much futur reallocations
+       ksize=2*nsize         ! To prevent too much future reallocations
        ALLOCATE(r_buf(1:ksize))
     ELSE IF ( SIZE(r_buf) .LT. nsize ) THEN
        DEALLOCATE(r_buf)
@@ -142,8 +142,7 @@ CONTAINS
     !  Check for part. array overflow
     ierr = 0
     nsize = np - sum(s_counts) + sum(r_counts)
-    sizexp = size(xp)
-    if( nsize .gt. sizexp ) then
+    if( nsize .gt. size(xp) ) then
        write(*,*) 'PE', me, 'Particle array overflow'
        ierr = 1
     end if
@@ -167,7 +166,7 @@ CONTAINS
 !
 !  Local vars
     INTEGER :: nsize
-    INTEGER :: i, ip(1), iz, ih, isrc
+    INTEGER :: i, ip, iz, ih, isrc
     INTEGER :: nhole, mhole, nrrecv, nrsend, nptot_old, nptot
     INTEGER :: ind, count, tot_count, iwork
 !
@@ -179,7 +178,7 @@ CONTAINS
 !----------------------------------------------------------------------
 !              1.  Fill send buffer
 !
-!$acc serial
+!$acc serial copy(i,nvp,s_counts,isrt,s_displ,iend,s_buf,ipsend,isrt,iend,xp)
     DO i=0,nvp-1
        IF( s_counts(i) .GT. 0 ) THEN
           isrt = s_displ(i)+1
@@ -216,14 +215,14 @@ CONTAINS
 !              3.   Remove holes and compress part. arrays
 !
     nhole = sum(s_counts)
-    ip(1) = np_old
-!$acc serial
+    ip = np_old
+!$acc serial copy(ih,nhole,iphole,ip,xp)
     DO ih = nhole, 1, -1
-       xp(iphole(ih)) = xp(ip(1))
-       ip(1) = ip(1)-1
+       xp(iphole(ih)) = xp(ip)
+       ip = ip-1
     END DO
 !$acc end serial
-    np_new = ip(1)
+    np_new = np_old-nhole
 !
 !----------------------------------------------------------------------
 !              4.   Store incoming part. to the part. arrays
@@ -243,7 +242,7 @@ CONTAINS
     IF( tot_count .GT. 0 ) THEN
        isrt = np_new + 1
        iend = np_new + tot_count
-!$acc serial
+!$acc serial copy(isrt,iend,r_buf,tot_count,xp)
        xp(isrt:iend) = r_buf(1:tot_count)
 !$acc end serial
        np_new = iend
