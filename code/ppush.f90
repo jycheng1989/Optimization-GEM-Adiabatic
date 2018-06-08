@@ -17,8 +17,10 @@ subroutine ppush(n,ns)
 
   call system_clock(count1, clockrate, clockmax)
 
+
   pidum = 1./(pi*2)**1.5*vwidth**3
 
+!$acc data
   !$acc parallel loop gang vector private(rhox,rhoy) copy(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
   do m=1,mm(ns)
      r=x2(ns,m)-0.5*lx+lr0
@@ -228,8 +230,13 @@ subroutine ppush(n,ns)
      z3(ns,m) = min(z3(ns,m),lz-1.0e-8)
   enddo
   !$acc end parallel
+!$acc end data
 
   np_old=mm(ns)
+
+!$acc data present(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
+!$acc host_data use_device(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
+
   call init_pmove(z3(ns,:),np_old,lz,ierr)
 
   call pmove(x2(ns,:),np_old,np_new,ierr)
@@ -266,8 +273,14 @@ subroutine ppush(n,ns)
   call pmove(u0i(ns,:),np_old,np_new,ierr)
   if (ierr.ne.0) call ppexit
 
+!$acc end host_data
+
   call end_pmove(ierr)
+
+!$acc end data
+
   mm(ns)=np_new
+
 
   call system_clock(count2, clockrate, clockmax)
   write (*,*) 'FULL PPUSH:', (count2 - count1) / real(clockrate)

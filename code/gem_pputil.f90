@@ -152,6 +152,7 @@ CONTAINS
     !              4.  Initialize tag
     !
     pmove_tag = 101
+!
     !
   END SUBROUTINE init_pmove
 !===========================================================================
@@ -176,6 +177,7 @@ CONTAINS
     INTEGER :: status(MPI_STATUS_SIZE), arr_status(MPI_STATUS_SIZE,nvp)
 !
 !----------------------------------------------------------------------
+!
 !              1.  Fill send buffer
 !
 !$acc serial copy(i,nvp,s_counts,isrt,s_displ,iend,s_buf,ipsend,isrt,iend,xp)

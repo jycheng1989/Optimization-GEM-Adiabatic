@@ -38,7 +38,8 @@ subroutine grid1(ip,n)
      myjpar = 0.
      mydti = 0.
 
-!$acc parallel loop gang vector private(rhox,rhoy) copy(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
+!$acc data
+  !$acc parallel loop gang vector private(rhox,rhoy) copy(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
      do m=1,mm(ns)
         dv=float(lr(1))*(dx*dy*dz)
         r=x3(ns,m)-0.5*lx+lr0
@@ -120,7 +121,8 @@ subroutine grid1(ip,n)
 
         enddo
      enddo
-!$acc end parallel
+  !$acc end parallel
+!$acc end data
 
      if(idg.eq.1)write(*,*)myid,'pass ion grid1'
      call MPI_BARRIER(MPI_COMM_WORLD,ierr)

@@ -7,7 +7,7 @@ LIBS = $(DFFTPACK)
 PLIB = gem_pputil.o
 
 F90 = mpif90
-OPT = -fast -r8 -Kieee -llapack -lblas -Mpreprocess -Minfo=accel -acc -ta=tesla:cc70 -g
+OPT = -fast -r8 -Kieee -llapack -lblas -Mpreprocess -Minfo -acc -ta=tesla:cc70
 #OPT = -FR -r8 -heap-arrays -O2 -g -traceback -check bounds
 #OPT = -FR -r8 -O3
 LDFLAGS = 
