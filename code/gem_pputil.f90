@@ -56,7 +56,7 @@ CONTAINS
     !
     !  Local vars
     INTEGER :: nsize, ksize, sizexp
-    INTEGER :: i, ip, iz, ih, iwork
+    INTEGER :: i, ip, iz, ih(1), iwork
     REAL :: dzz, xt
     INTEGER, DIMENSION(0:nvp-1) :: isb
     !
@@ -73,11 +73,12 @@ CONTAINS
     !
     dzz = lz / nvp
     s_counts = 0
-!$acc loop seq
+!$acc parallel loop gang vector
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
        IF( iz .ne. GCLR )THEN
+          !$acc atomic update
           s_counts(iz) = s_counts(iz)+1
        END IF
     END DO
@@ -105,18 +106,19 @@ CONTAINS
     !              2.  Construct (sorted) pointers to holes
     !
     isb(0:nvp-1) = s_displ(0:nvp-1)
-    ih = 0
-!$acc loop seq
+    ih(1) = 0
+!$acc serial
     DO ip=1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
        IF( iz .ne. GCLR ) THEN
           isb(iz) = isb(iz)+1
           ipsend(isb(iz)) = ip
-          ih = ih+1
-          iphole(ih) = ip
+          ih(1) = ih(1)+1
+          iphole(ih(1)) = ip
        END IF
     END DO
+!$acc end serial
     !
     !----------------------------------------------------------------------
     !              3.  Construct receive buffer
@@ -140,9 +142,7 @@ CONTAINS
     !  Check for part. array overflow
     ierr = 0
     nsize = np - sum(s_counts) + sum(r_counts)
-!$acc kernels
     sizexp = size(xp)
-!$acc end kernels
     if( nsize .gt. sizexp ) then
        write(*,*) 'PE', me, 'Particle array overflow'
        ierr = 1
@@ -167,7 +167,7 @@ CONTAINS
 !
 !  Local vars
     INTEGER :: nsize
-    INTEGER :: i, ip, iz, ih, isrc
+    INTEGER :: i, ip(1), iz, ih, isrc
     INTEGER :: nhole, mhole, nrrecv, nrsend, nptot_old, nptot
     INTEGER :: ind, count, tot_count, iwork
 !
@@ -179,7 +179,7 @@ CONTAINS
 !----------------------------------------------------------------------
 !              1.  Fill send buffer
 !
-!$acc loop seq
+!$acc serial
     DO i=0,nvp-1
        IF( s_counts(i) .GT. 0 ) THEN
           isrt = s_displ(i)+1
@@ -187,6 +187,7 @@ CONTAINS
           s_buf(isrt:iend) = xp(ipsend(isrt:iend))
        END IF
     END DO
+!$acc end serial
 !----------------------------------------------------------------------
 !              2.   Initiate non-blocking send/receive
 !
@@ -215,13 +216,14 @@ CONTAINS
 !              3.   Remove holes and compress part. arrays
 !
     nhole = sum(s_counts)
-    ip = np_old
-!$acc loop seq
+    ip(1) = np_old
+!$acc serial
     DO ih = nhole, 1, -1
-       xp(iphole(ih)) = xp(ip)
-       ip = ip-1
+       xp(iphole(ih)) = xp(ip(1))
+       ip(1) = ip(1)-1
     END DO
-    np_new = ip
+!$acc end serial
+    np_new = ip(1)
 !
 !----------------------------------------------------------------------
 !              4.   Store incoming part. to the part. arrays
@@ -238,14 +240,14 @@ CONTAINS
        tot_count =  tot_count+count
     END DO
 !
-!$acc kernels
     IF( tot_count .GT. 0 ) THEN
        isrt = np_new + 1
        iend = np_new + tot_count
+!$acc serial
        xp(isrt:iend) = r_buf(1:tot_count)
+!$acc end serial
        np_new = iend
     END IF
-!$acc end kernels
 !
 !----------------------------------------------------------------------
 !              5.   Epilogue

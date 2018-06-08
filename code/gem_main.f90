@@ -19,12 +19,13 @@ program gem_main
   if(iget.eq.1)then
      call restart(1,0)
   end if
-  starttm=MPI_WTIME()
 
   if(isft==1)then
      call ftcamp
      goto 100
   end if
+
+  starttm=MPI_WTIME()
 
 !$acc data copy(mu,xii,pzi,eki,z0i,u0i,x2,y2,z2,u2,x3,y3,z3,u3,w2,w3)
   do  timestep=ncurr,nm
@@ -48,18 +49,19 @@ program gem_main
   end do
 !$acc end data
 
-  ! create test cases
-  !call regtest_main(.True., '.', '100kparticles')
-
-  ! test current code
-  !call regtest_main(.False., '.', '100kparticles')
-
-  call ftcamp
   lasttm=MPI_WTIME()
   tottm=lasttm-starttm
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
-  if (MyId == 0) print*, 'TOTAL EXEUCTION TIME: ', tottm
+  if (MyId == 0) print*, 'MAIN LOOP EXEUCTION TIME: ', tottm
+
+  ! create test cases
+  !call regtest_main(.True., '.', 'regtest')
+
+  ! test current code
+  call regtest_main(.False., '.', 'regtest')
+
+  call ftcamp
+  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 100 call MPI_FINALIZE(ierr)
 
