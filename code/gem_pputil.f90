@@ -81,16 +81,15 @@ CONTAINS
     s_counts = 0
 !$acc end kernels
 
-!$acc kernels
-!$acc loop seq
+!$acc parallel loop gang vector
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
        IF( iz .ne. GCLR )THEN
+          !$acc atomic update
           s_counts(iz) = s_counts(iz)+1
        END IF
     END DO
-!$acc end kernels
 
 !$acc update host (s_counts)
 

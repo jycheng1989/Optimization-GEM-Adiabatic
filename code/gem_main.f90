@@ -55,7 +55,7 @@ program gem_main
   !call regtest_main(.True., '.', 'regtest')
 
   ! test current code
-  !call regtest_main(.False., '.', 'regtest')
+  call regtest_main(.False., '.', 'regtest')
 
   call ftcamp
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
