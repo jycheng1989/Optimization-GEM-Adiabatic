@@ -1,6 +1,7 @@
 !   global variables...
 program gem_main
 
+  use gem_pputil
   use gem_com
   use gem_equil
   use gem_fft_wrapper

@@ -49,6 +49,7 @@ CONTAINS
   SUBROUTINE init_pmove(xp, np, lz, ierr)
     !
     use mpi
+    use quicksort
     !
     REAL, DIMENSION(:), INTENT(in) :: xp
     INTEGER, INTENT(in) :: np
@@ -128,21 +129,25 @@ CONTAINS
       xt = MODULO(xp(ip), lz)            !!! Assume periodicity
       iz = INT(xt/dzz)
        IF( iz .ne. GCLR ) THEN
-          !$atomic capture
+          !$acc atomic capture
           isb(iz) = isb(iz)+1
           myisb = isb(iz)
-          !$end atomic
-          ipsend(myisb) = ip
-          !$atomic capture
+          !$acc end atomic
+          ipsend(myisb) = ip ! i don't think it matters that the order of ipsend will change
+          !$acc atomic capture
           ih(1) = ih(1)+1
           myih = ih(1)
-          !$end atomic
-          iphole(myih) = ip
+          !$acc end atomic
+          iphole(myih) = ip !iphole must be ordered, sort after
        END IF
     END DO
 !$acc end kernels
 
 !$acc update host(iphole)
+
+    !print*, 'before qsort iphole = ', iphole
+    call qsort(iphole,1,nsize)
+    !print*, 'after qsort iphole = ', iphole
 
 ! rewrite so that holes with index > np - nsize are skipped
 ! these holes cause a loop dependency
@@ -1303,5 +1308,6 @@ CONTAINS
     END DO
   END SUBROUTINE PPCFFT2_3D
 !===========================================================================
+
 END MODULE gem_pputil
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
