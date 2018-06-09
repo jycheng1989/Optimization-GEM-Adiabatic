@@ -1,6 +1,6 @@
-SRCS =	gem_com.f90 gem_equil.f90 gem_main.f90 gem_outd.f90 gem_fcnt.f90 gem_fft_wrapper.f90 gem_gkps_adi.f90 ppush.f90 cpush.f90 grid1.f90 regtest.f90 quicksort.f90
+SRCS =	gem_com.f90 gem_equil.f90 gem_main.f90 gem_outd.f90 gem_fcnt.f90 gem_fft_wrapper.f90 gem_gkps_adi.f90 ppush.f90 cpush.f90 grid1.f90 regtest.f90
 
-OBJS =	gem_com.o quicksort.o gem_equil.o gem_main.o gem_outd.o gem_fcnt.o gem_fft_wrapper.o gem_gkps_adi.o ppush.o cpush.o grid1.o regtest.o
+OBJS =	gem_com.o gem_equil.o gem_main.o gem_outd.o gem_fcnt.o gem_fft_wrapper.o gem_gkps_adi.o ppush.o cpush.o grid1.o regtest.o
 
 DFFTPACK=../dfftpack/libdfftpack.a
 LIBS = $(DFFTPACK)
@@ -17,7 +17,7 @@ LDFLAGS =
 gem_main: gem_equil.o gem_main.o gem_outd.o gem_fcnt.o gem_pputil.mod gem_com.mod gem_fft_wrapper.o gem_gkps_adi.o
 	$(F90)  -o gem_main $(OPT) $(OBJS) $(PLIB) $(LIBS) 
 
-gem_pputil.mod: gem_pputil.f90 quicksort.mod
+gem_pputil.mod: gem_pputil.f90
 	$(F90) -c gem_pputil.f90 -fast -r8 -Kieee -llapack -lblas -Mpreprocess -Minfo=accel -acc -ta=tesla:cc70
 
 gem_com.mod: gem_com.f90 gem_pputil.mod
@@ -52,9 +52,6 @@ gem_fft_wrapper.o: gem_fft_wrapper.f90
 
 regtest.o: regtest.f90
 	$(F90) -c $(OPT) regtest.f90
-
-quicksort.mod: quicksort.f90
-	${F90} -c $(OPT) quicksort.f90
 
 clean:
 	rm -f *.o *.lst *.mod gem_main

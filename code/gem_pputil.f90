@@ -49,7 +49,6 @@ CONTAINS
   SUBROUTINE init_pmove(xp, np, lz, ierr)
     !
     use mpi
-    use quicksort
     !
     REAL, DIMENSION(:), INTENT(in) :: xp
     INTEGER, INTENT(in) :: np
@@ -78,21 +77,21 @@ CONTAINS
     !
 !!$acc update host(xp)
     dzz = lz / nvp
-!$acc kernels present(s_counts)
+!!$acc kernels present(s_counts)
     s_counts = 0
-!$acc end kernels
+!!$acc end kernels
 
-!$acc parallel loop gang vector
+!!$acc parallel loop gang vector
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
        IF( iz .ne. GCLR )THEN
-!$acc atomic update
+!!$acc atomic update
           s_counts(iz) = s_counts(iz)+1
        END IF
     END DO
 
-!$acc update host(s_counts)
+!!$acc update host(s_counts)
 
     s_displ(0) = 0
     DO i=1,nvp-1
@@ -120,34 +119,24 @@ CONTAINS
     !
     isb(0:nvp-1) = s_displ(0:nvp-1)
 
-!$acc update device(isb)
+!!$acc update device(isb)
 
-!$acc kernels copy(ih) present(xp,isb,ipsend,iphole)
+!!$acc kernels copy(ih) present(xp,isb,ipsend,iphole)
     ih = 0
-!$acc loop parallel gang vector
+!!$acc loop seq
     DO ip=1,np
       xt = MODULO(xp(ip), lz)            !!! Assume periodicity
       iz = INT(xt/dzz)
        IF( iz .ne. GCLR ) THEN
-          !$acc atomic capture
           isb(iz) = isb(iz)+1
           myisb = isb(iz)
-          !$acc end atomic
           ipsend(myisb) = ip ! i don't think it matters that the order of ipsend will change
-          !$acc atomic capture
           ih(1) = ih(1)+1
           myih = ih(1)
-          !$acc end atomic
           iphole(myih) = ip !iphole must be ordered, sort after
        END IF
     END DO
-!$acc end kernels
-
-!$acc update host(iphole)
-
-    !print*, 'before qsort iphole = ', iphole
-    call qsort(iphole,1,nsize)
-    !print*, 'after qsort iphole = ', iphole
+!!$acc end kernels
 
 ! rewrite so that holes with index > np - nsize are skipped
 ! these holes cause a loop dependency
