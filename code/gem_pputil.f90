@@ -57,7 +57,7 @@ CONTAINS
     !
     !  Local vars
     INTEGER :: nsize, ksize
-    INTEGER :: i, ip, iz, ih(1), iwork
+    INTEGER :: i, ip, iz, ih(1), iwork, i1, myisb, myih
 
     REAL :: dzz, xt
     INTEGER, DIMENSION(0:nvp-1) :: isb
@@ -75,24 +75,23 @@ CONTAINS
     !----------------------------------------------------------------------
     !              1.  Construct send buffer
     !
-!$acc update host(xp)
+!!$acc update host(xp)
     dzz = lz / nvp
-!!$acc kernels present(s_counts)
+!$acc kernels present(s_counts)
     s_counts = 0
-!!$acc end kernels
+!$acc end kernels
 
-!!$acc kernels present(xp,s_counts)
+!$acc parallel loop gang vector
     DO ip = 1,np
        xt = MODULO(xp(ip), lz)            !!! Assume periodicity
        iz = INT(xt/dzz)
        IF( iz .ne. GCLR )THEN
-!!$acc atomic update
+!$acc atomic update
           s_counts(iz) = s_counts(iz)+1
        END IF
     END DO
-!!$acc end kernels
 
-!!$acc update host (s_counts)
+!$acc update host(s_counts)
 
     s_displ(0) = 0
     DO i=1,nvp-1
@@ -120,22 +119,64 @@ CONTAINS
     !
     isb(0:nvp-1) = s_displ(0:nvp-1)
 
-!!$acc update device(isb)
+!$acc update device(isb)
 
-!!$acc kernels copy(ih) present(xp,isb,ipsend,iphole)
+!$acc kernels copy(ih) present(xp,isb,ipsend,iphole)
     ih = 0
-!!$acc loop seq
+!$acc loop parallel gang vector
     DO ip=1,np
       xt = MODULO(xp(ip), lz)            !!! Assume periodicity
       iz = INT(xt/dzz)
        IF( iz .ne. GCLR ) THEN
+          !$atomic capture
           isb(iz) = isb(iz)+1
-          ipsend(isb(iz)) = ip
+          myisb = isb(iz)
+          !$end atomic
+          ipsend(myisb) = ip
+          !$atomic capture
           ih(1) = ih(1)+1
-          iphole(ih(1)) = ip
+          myih = ih(1)
+          !$end atomic
+          iphole(myih) = ip
        END IF
     END DO
-!!$acc end kernels
+!$acc end kernels
+
+!$acc update host(iphole)
+
+! rewrite so that holes with index > np - nsize are skipped
+! these holes cause a loop dependency
+! instead, map the element of xp which would have been mapped to
+! index > np - nsize to eventual destination with
+! index <= np - nsize
+
+! modify iphole so that it maps xp(np-nsize+1:np) to 
+! final positions in xp(1:np-nsize), where -1 indicates that
+! the elemenent of xp(np-nsize+1:np) is to be skipped
+! note that:
+! nsize = nhole calculated in pmove
+! np = np_old passed to pmove
+
+    print *, 'nsize (aka nhole) = ', nsize
+    print *, 'np (aka np_old) = ', np
+    !print *, 'iphole before = ', iphole
+    do i = nsize, 1, -1 ! outer loop index i iterates through iphole in reverse order
+      !print*, 'in outer loop, i = ', i
+      i1 = i
+      ip = iphole(i1)
+      !print*, 'i1 = ', i1
+      !print*, 'ip = ', ip
+      do while (ip > np - nsize) ! follow iphole elements backwards until found index <= np-nsize
+        !print*, 'in inner loop'
+        i1 = ip - (np - nsize)
+        ip  = iphole(i1)
+        iphole(i1) = -1
+        !print*, 'i1 = ', i1
+        !print*, 'ip = ', ip
+      end do
+      if (iphole(i) /= -1) iphole(i) = ip ! set current outer loop index
+    end do
+    !print *, 'iphole after = ', iphole
 
     !
     !----------------------------------------------------------------------
@@ -173,7 +214,7 @@ CONTAINS
     !
     pmove_tag = 101
     !
-!$acc update device(iphole,ipsend)
+!$acc update device(iphole)
 !$acc exit data
   END SUBROUTINE init_pmove
 !===========================================================================
@@ -188,7 +229,7 @@ CONTAINS
 !
 !  Local vars
     INTEGER :: nsize
-    INTEGER :: i, ip(1), iz, ih, isrc
+    INTEGER :: i, ip, iz, ih, isrc
     INTEGER :: nhole, mhole, nrrecv, nrsend, nptot_old, nptot
     INTEGER :: ind, count, tot_count, iwork
 !
@@ -244,14 +285,14 @@ CONTAINS
 !              3.   Remove holes and compress part. arrays
 !
     nhole = sum(s_counts)
-    ip(1) = np_old
-!$acc serial copy(ip(1)) present(xp,iphole)
+
+!$acc parallel loop present(xp,iphole)
     DO ih = nhole, 1, -1
-       xp(iphole(ih)) = xp(ip(1))
-       ip(1) = ip(1)-1
+      if (iphole(ih) > 0) then ! SEE MODIFICATIONS TO IPHOLE IN INIT_PMOVE
+        xp(iphole(ih)) = xp(ih + np_old - nhole)
+      end if
     END DO
-!$acc end serial
-    np_new = ip(1)
+    np_new = np_old - nhole
 !
 !----------------------------------------------------------------------
 !              4.   Store incoming part. to the part. arrays
