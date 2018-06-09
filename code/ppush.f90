@@ -2,6 +2,7 @@ subroutine ppush(n,ns)
 
   use gem_com
   use gem_equil
+  use openacc
   implicit none
   real :: phip,exp1,eyp,ezp,delbxp,delbyp,dpdzp,dadzp,aparp
   real :: wx0,wx1,wy0,wy1,wz0,wz1,dum,vxdum,dum1,bstar
@@ -13,6 +14,7 @@ subroutine ppush(n,ns)
   real :: dbdrp,dbdtp,grcgtp,bfldp,fp,radiusp,dydrp,qhatp,psipp,jfnp,grdgtp
   real :: grp,gxdgyp,rhox(4),rhoy(4),psp,pzp,vncp,vparspp,psip2p,bdcrvbp,curvbzp,dipdrp
   integer :: mynopi
+  logical :: in_device
 
   integer :: count1, count2, clockrate, clockmax
 
@@ -25,7 +27,8 @@ subroutine ppush(n,ns)
 !$acc end kernels
 
 
-!$acc parallel loop gang vector private(rhox,rhoy)
+ppush1_start_tm=ppush1_end_tm+MPI_WTIME()
+!$acc parallel loop gang vector private(rhox,rhoy) 
   do m=1,mm(ns)
      r=x2(ns,m)-0.5*lx+lr0
      k = int(z2(ns,m)/delz)
@@ -235,13 +238,18 @@ subroutine ppush(n,ns)
 
   enddo
 !$acc end parallel
+ppush1_end_tm=ppush1_end_tm+MPI_WTIME()
 
-  call MPI_ALLREDUCE(mynopi,nopi(ns),1,MPI_integer, &
-       MPI_SUM, MPI_COMM_WORLD,ierr)
-
+  !call MPI_ALLREDUCE(mynopi,nopi(ns),1,MPI_integer, &
+  !     MPI_SUM, MPI_COMM_WORLD,ierr)
+  
   np_old=mm(ns)
+  ppush2_start_tm=ppush2_start_tm+MPI_WTIME()
+  in_device=acc_is_present(z3)
+  write(*,*)'in_device',in_device 
+!$acc data present(z3,x2,x3,y2,y3,z2,z3,u2,u3,w2,w3,mu,xii,z0i,pzi,eki,u0i)
+  !$acc host_data use_device(z3,x2,x3,y2,y3,z2,z3,u2,u3,w2,w3,mu,xii,z0i,pzi,eki,u0i)
   call init_pmove(z3(ns,:),np_old,lz,ierr)
-
   call pmove(x2(ns,:),np_old,np_new,ierr)
   if (ierr.ne.0) call ppexit
   call pmove(x3(ns,:),np_old,np_new,ierr)
@@ -274,9 +282,12 @@ subroutine ppush(n,ns)
   call pmove(eki(ns,:),np_old,np_new,ierr)
   if (ierr.ne.0) call ppexit
   call pmove(u0i(ns,:),np_old,np_new,ierr)
-  if (ierr.ne.0) call ppexit
 
+  if (ierr.ne.0) call ppexit
   call end_pmove(ierr)
+  !$acc end host_data
+!$acc end data
+ppush2_end_tm=ppush2_end_tm+MPI_WTIME()
 !$acc kernels
   mm(ns)=np_new
 !$acc end kernels

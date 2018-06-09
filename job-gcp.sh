@@ -12,5 +12,5 @@ mkdir -p out
 mkdir -p dump
 
 export PGI_ACC_TIME=1
-#mpirun -n 2 pgprof -o gem.%p.prof ./gem_main >& run.out
-mpirun -n 2 ./gem_main >& run.out
+mpirun -n 4 pgprof -o gem.%p.prof ./gem_main >& run.out
+#mpirun -n 2 ./gem_main >& run.out

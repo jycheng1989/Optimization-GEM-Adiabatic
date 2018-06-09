@@ -50,11 +50,16 @@ program gem_main
   !call regtest_main(.True., '.', '100kparticles')
 
   ! test current code
-  call regtest_main(.False., '.', '100kparticles')
+  !call regtest_main(.False., '.', '100kparticles')
 
   call ftcamp
   lasttm=MPI_WTIME()
   tottm=lasttm-starttm
+  ppush1_tot_tm=ppush1_end_tm-ppush1_start_tm
+  ppush2_tot_tm=ppush2_end_tm-ppush2_start_tm
+  cpush1_tot_tm=cpush1_end_tm-cpush1_start_tm
+  cpush2_tot_tm=cpush2_end_tm-cpush2_start_tm
+  write(*,*)'tot_tm',tottm,ppush1_tot_tm,ppush2_tot_tm,cpush1_tot_tm,cpush2_tot_tm
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 100 call MPI_FINALIZE(ierr)
@@ -1746,33 +1751,33 @@ subroutine dcmpy(u,v)
   real :: kx,ky,kx0,th,shat,sgny
 
   do k=0,mykm
-  !$acc kernels
+  !!$acc kernels
      do j=0,jm-1
         do i=0,imx-1
            temp3d(i,j,k)=u(i,j,k)
         enddo
      enddo
-  !$acc end kernels
+  !!$acc end kernels
      do i = 0,imx-1
-  !$acc kernels
+  !!$acc kernels
         do j = 0,jmx-1
            tmpy(j) = temp3d(i,j,k)
         end do
-  !$acc end kernels
+  !!$acc end kernels
         call ccfft('y',-1,jmx,1.0,tmpy,coefy,worky,0)
-  !$acc kernels
+  !!$acc kernels
         do j = 0,jmx-1
            temp3d(i,j,k) = tmpy(j)
         end do
-  !$acc end kernels
+  !!$acc end kernels
      end do
   enddo
 
-  !$acc kernels
+  !!$acc kernels
   do m = 0,jcnt-1
      myv(:,m,:) = temp3d(:,jft(m),:)
   end do
-  !$acc end kernels
+  !!$acc end kernels
 
   cnt = 2*jcnt*imx
   call mpi_allreduce(myv,v,cnt,MPI_DOUBLE_COMPLEX,mpi_sum, &

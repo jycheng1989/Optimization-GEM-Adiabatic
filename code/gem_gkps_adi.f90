@@ -321,17 +321,17 @@ subroutine gkps_adiabatic_electron(nstep,ip)
   !  from phi(kx,ky) to phi(x,y)
   do k=0,mykm
      do i=0,imx-1
-        !$acc kernels
+        !!$acc kernels
         do j=0,jmx-1
           tmpy(j)=temp3dxy(i,j,k)
         enddo
-        !$acc end kernels
+        !!$acc end kernels
         call ccfft('y',1,jmx,1.0,tmpy,coefy,worky,0)
-        !$acc kernels
+        !!$acc kernels
         do j=0,jmx-1
            temp3dxy(i,j,k)=tmpy(j)  ! phi(x,y)
         enddo
-        !$acc end kernels
+        !!$acc end kernels
      enddo
   enddo
  
@@ -392,17 +392,17 @@ subroutine gkps_adiabatic_electron(nstep,ip)
   !  from phi(kx,ky) to phi(x,y)
   do k=0,mykm
      do i=0,imx-1
-        !$acc kernels
+        !!$acc kernels
         do j=0,jmx-1
            tmpy(j)=temp3dxy(i,j,k)
         enddo
-        !$acc end kernels
+        !!$acc end kernels
         call ccfft('y',1,jmx,1.0,tmpy,coefy,worky,0)
-        !$acc kernels
+        !!$acc kernels
         do j=0,jmx-1
            temp3dxy(i,j,k)=tmpy(j)  ! phi(x,y)
         enddo
-        !$acc end kernels
+        !!$acc end kernels
      enddo
   enddo
 

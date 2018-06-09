@@ -26,6 +26,8 @@ module gem_com
   character(len=70) outname
   REAL :: endtm,begtm,pstm
   REAL :: starttm,lasttm,tottm
+  real :: ppush1_start_tm,ppush1_end_tm,ppush1_tot_tm,ppush2_start_tm,ppush2_end_tm,ppush2_tot_tm
+  real :: cpush1_start_tm,cpush1_end_tm,cpush2_start_tm,cpush2_end_tm,cpush1_tot_tm,cpush2_tot_tm
   real :: aux1(50000),aux2(20000)
   real,dimension(:),allocatable :: workx,worky,workz
   complex,dimension(:),allocatable :: tmpx

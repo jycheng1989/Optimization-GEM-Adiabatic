@@ -138,6 +138,7 @@ CONTAINS
     !  Check for part. array overflow
     ierr = 0
     nsize = np - sum(s_counts) + sum(r_counts)
+    write(*,*)'nsize=',nsize
     if( nsize .gt. size(xp) ) then
        write(*,*) 'PE', me, 'Particle array overflow'
        ierr = 1
